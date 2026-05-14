@@ -27,6 +27,39 @@ public class LoanRepository(DapperContext ctx)
             """);
     }
 
+    public async Task<(IEnumerable<LoanDetail> Items, int Total)> GetPagedAsync(int page, int pageSize, string filter)
+    {
+        var offset = page * pageSize;
+        var param = new
+        {
+            Filter = filter == "all" ? null : filter,
+            Offset = offset,
+            PageSize = pageSize
+        };
+
+        var sql = $"""
+            SELECT COUNT(*)
+            FROM loans l
+            JOIN customers c ON c.customer_id = l.customer_id
+            JOIN books     b ON b.book_id     = l.book_id
+            WHERE @Filter IS NULL OR l.status = @Filter;
+
+            SELECT {SelectCols}
+            FROM loans l
+            JOIN customers c ON c.customer_id = l.customer_id
+            JOIN books     b ON b.book_id     = l.book_id
+            WHERE @Filter IS NULL OR l.status = @Filter
+            ORDER BY l.loan_date DESC
+            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+            """;
+
+        using var conn = ctx.CreateConnection();
+        using var multi = await conn.QueryMultipleAsync(sql, param);
+        var total = await multi.ReadFirstAsync<int>();
+        var items = await multi.ReadAsync<LoanDetail>();
+        return (items, total);
+    }
+
     public async Task<IEnumerable<LoanDetail>> GetOverdueAsync()
     {
         using var conn = ctx.CreateConnection();
@@ -39,6 +72,36 @@ public class LoanRepository(DapperContext ctx)
                OR (l.status = 'active' AND l.due_date < CAST(GETDATE() AS DATE))
             ORDER BY l.due_date
             """);
+    }
+
+    public async Task<(IEnumerable<LoanDetail> Items, int Total)> GetOverduePagedAsync(int page, int pageSize)
+    {
+        var offset = page * pageSize;
+        var param = new { Offset = offset, PageSize = pageSize };
+
+        var sql = $"""
+            SELECT COUNT(*)
+            FROM loans l
+            JOIN customers c ON c.customer_id = l.customer_id
+            JOIN books     b ON b.book_id     = l.book_id
+            WHERE l.status = 'overdue'
+               OR (l.status = 'active' AND l.due_date < CAST(GETDATE() AS DATE));
+
+            SELECT {SelectCols}
+            FROM loans l
+            JOIN customers c ON c.customer_id = l.customer_id
+            JOIN books     b ON b.book_id     = l.book_id
+            WHERE l.status = 'overdue'
+               OR (l.status = 'active' AND l.due_date < CAST(GETDATE() AS DATE))
+            ORDER BY l.due_date
+            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+            """;
+
+        using var conn = ctx.CreateConnection();
+        using var multi = await conn.QueryMultipleAsync(sql, param);
+        var total = await multi.ReadFirstAsync<int>();
+        var items = await multi.ReadAsync<LoanDetail>();
+        return (items, total);
     }
 
     public async Task<IEnumerable<LoanDetail>> GetActiveAsync()

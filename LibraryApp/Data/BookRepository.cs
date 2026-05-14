@@ -29,6 +29,57 @@ public class BookRepository(DapperContext ctx)
         return await conn.QueryAsync<Book>(sql);
     }
 
+    public async Task<(IEnumerable<Book> Items, int Total)> GetPagedAsync(int page, int pageSize, string? search)
+    {
+        var offset = page * pageSize;
+        var param = new
+        {
+            Search = string.IsNullOrWhiteSpace(search) ? null : search,
+            Offset = offset,
+            PageSize = pageSize
+        };
+
+        const string cte = """
+            WITH cte AS (
+                SELECT b.book_id BookId, b.isbn Isbn, b.title Title,
+                       b.publisher_id PublisherId, p.name PublisherName,
+                       b.genre_id GenreId, g.name GenreName,
+                       b.publication_year PublicationYear, b.language Language,
+                       b.page_count PageCount, b.total_copies TotalCopies,
+                       b.available_copies AvailableCopies,
+                       STRING_AGG(a.first_name + ' ' + a.last_name, ', ') AuthorsDisplay
+                FROM books b
+                LEFT JOIN publishers p  ON p.publisher_id = b.publisher_id
+                LEFT JOIN genres g      ON g.genre_id     = b.genre_id
+                LEFT JOIN book_authors ba ON ba.book_id   = b.book_id
+                LEFT JOIN authors a     ON a.author_id    = ba.author_id
+                GROUP BY b.book_id, b.isbn, b.title, b.publisher_id, p.name,
+                         b.genre_id, g.name, b.publication_year, b.language,
+                         b.page_count, b.total_copies, b.available_copies
+            )
+            """;
+
+        const string where = """
+            WHERE @Search IS NULL
+               OR Title                       LIKE '%' + @Search + '%'
+               OR ISNULL(GenreName,'')        LIKE '%' + @Search + '%'
+               OR ISNULL(AuthorsDisplay,'')   LIKE '%' + @Search + '%'
+            """;
+
+        var sql = $"""
+            {cte} SELECT COUNT(*) FROM cte {where};
+            {cte} SELECT * FROM cte {where}
+            ORDER BY Title
+            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+            """;
+
+        using var conn = ctx.CreateConnection();
+        using var multi = await conn.QueryMultipleAsync(sql, param);
+        var total = await multi.ReadFirstAsync<int>();
+        var items = await multi.ReadAsync<Book>();
+        return (items, total);
+    }
+
     public async Task<Book?> GetByIdAsync(int id)
     {
         const string sql = """

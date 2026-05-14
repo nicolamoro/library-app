@@ -18,6 +18,37 @@ public class CustomerRepository(DapperContext ctx)
             $"SELECT {SelectCols} FROM customers ORDER BY last_name, first_name");
     }
 
+    public async Task<(IEnumerable<Customer> Items, int Total)> GetPagedAsync(int page, int pageSize, string? search)
+    {
+        var offset = page * pageSize;
+        var param = new
+        {
+            Search = string.IsNullOrWhiteSpace(search) ? null : search,
+            Offset = offset,
+            PageSize = pageSize
+        };
+
+        const string where = """
+            WHERE @Search IS NULL
+               OR first_name + ' ' + last_name  LIKE '%' + @Search + '%'
+               OR last_name  + ' ' + first_name  LIKE '%' + @Search + '%'
+               OR ISNULL(email,'')               LIKE '%' + @Search + '%'
+            """;
+
+        var sql = $"""
+            SELECT COUNT(*) FROM customers {where};
+            SELECT {SelectCols} FROM customers {where}
+            ORDER BY last_name, first_name
+            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+            """;
+
+        using var conn = ctx.CreateConnection();
+        using var multi = await conn.QueryMultipleAsync(sql, param);
+        var total = await multi.ReadFirstAsync<int>();
+        var items = await multi.ReadAsync<Customer>();
+        return (items, total);
+    }
+
     public async Task<Customer?> GetByIdAsync(int id)
     {
         using var conn = ctx.CreateConnection();

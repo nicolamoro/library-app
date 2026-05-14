@@ -23,62 +23,60 @@
                Variant="@(_filter == "returned" ? Variant.Filled : Variant.Outlined)">Restituiti</MudButton>
 </MudButtonGroup>
 
-@if (_loans is null)
-{
-    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
-}
-else
-{
-    <MudTable Items="Filtered" Hover="true" Dense="true" Striped="true" Elevation="2">
-        <HeaderContent>
-            <MudTh>ID</MudTh>
-            <MudTh>Cliente</MudTh>
-            <MudTh>Libro</MudTh>
-            <MudTh>Prestito</MudTh>
-            <MudTh>Scadenza</MudTh>
-            <MudTh>Restituzione</MudTh>
-            <MudTh>Stato</MudTh>
-            <MudTh>Multa</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd>@context.LoanId</MudTd>
-            <MudTd>@context.CustomerName</MudTd>
-            <MudTd>@context.BookTitle</MudTd>
-            <MudTd>@context.LoanDate.ToString("dd/MM/yyyy")</MudTd>
-            <MudTd>@context.DueDate.ToString("dd/MM/yyyy")</MudTd>
-            <MudTd>@(context.ReturnDate?.ToString("dd/MM/yyyy") ?? "—")</MudTd>
-            <MudTd>
-                <MudChip T="string" Size="Size.Small" Color="@StatusColor(context.Status)">
-                    @context.Status
-                </MudChip>
-            </MudTd>
-            <MudTd>
-                @if (context.FineAmount.HasValue)
-                {
-                    <MudText Color="@(context.FinePaid ? Color.Default : Color.Error)">
-                        € @context.FineAmount.Value.ToString("F2")
-                        @(context.FinePaid ? "✓" : "")
-                    </MudText>
-                }
-                else { <text>—</text> }
-            </MudTd>
-        </RowTemplate>
-    </MudTable>
-}
+<MudTable @ref="_table" T="LoanDetail" ServerData="LoadData" Hover="true" Dense="true" Striped="true" Elevation="2" RowsPerPage="20">
+    <HeaderContent>
+        <MudTh>ID</MudTh>
+        <MudTh>Cliente</MudTh>
+        <MudTh>Libro</MudTh>
+        <MudTh>Prestito</MudTh>
+        <MudTh>Scadenza</MudTh>
+        <MudTh>Restituzione</MudTh>
+        <MudTh>Stato</MudTh>
+        <MudTh>Multa</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.LoanId</MudTd>
+        <MudTd>@context.CustomerName</MudTd>
+        <MudTd>@context.BookTitle</MudTd>
+        <MudTd>@context.LoanDate.ToString("dd/MM/yyyy")</MudTd>
+        <MudTd>@context.DueDate.ToString("dd/MM/yyyy")</MudTd>
+        <MudTd>@(context.ReturnDate?.ToString("dd/MM/yyyy") ?? "—")</MudTd>
+        <MudTd>
+            <MudChip T="string" Size="Size.Small" Color="@StatusColor(context.Status)">
+                @context.Status
+            </MudChip>
+        </MudTd>
+        <MudTd>
+            @if (context.FineAmount.HasValue)
+            {
+                <MudText Color="@(context.FinePaid ? Color.Default : Color.Error)">
+                    € @context.FineAmount.Value.ToString("F2")
+                    @(context.FinePaid ? "✓" : "")
+                </MudText>
+            }
+            else { <text>—</text> }
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new int[]{10, 20, 50, 100}" />
+    </PagerContent>
+</MudTable>
 
 @code {
-    private IEnumerable<LoanDetail>? _loans;
+    private MudTable<LoanDetail> _table = null!;
     private string _filter = "all";
 
-    private IEnumerable<LoanDetail> Filtered =>
-        _loans is null ? [] :
-        _filter == "all" ? _loans :
-        _loans.Where(l => l.Status == _filter);
+    private async Task<TableData<LoanDetail>> LoadData(TableState state, CancellationToken ct)
+    {
+        var (items, total) = await LoanRepo.GetPagedAsync(state.Page, state.PageSize, _filter);
+        return new TableData<LoanDetail> { Items = items, TotalItems = total };
+    }
 
-    protected override async Task OnInitializedAsync()
-        => _loans = await LoanRepo.GetAllAsync();
-
-    private void SetFilter(string f) => _filter = f;
+    private async Task SetFilter(string f)
+    {
+        _filter = f;
+        await _table.ReloadServerData();
+    }
 
     private Color StatusColor(string status) => status switch
     {

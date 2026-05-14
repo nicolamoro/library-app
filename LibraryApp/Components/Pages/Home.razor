@@ -6,48 +6,53 @@
 <MudText Typo="Typo.h4" Class="mb-1">Dashboard</MudText>
 <MudText Typo="Typo.subtitle1" Class="mb-4 mud-text-secondary">Prestiti scaduti o in ritardo</MudText>
 
-@if (_loans is null)
-{
-    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
-}
-else if (!_loans.Any())
+@if (_totalOverdue == 0)
 {
     <MudAlert Severity="Severity.Success" Class="mt-4">Nessun prestito scaduto. Tutto in ordine!</MudAlert>
 }
-else
+else if (_totalOverdue > 0)
 {
-    <MudAlert Severity="Severity.Warning" Class="mb-4">@_loans.Count() prestito/i in ritardo.</MudAlert>
-
-    <MudTable Items="_loans" Hover="true" Dense="true" Striped="true" Elevation="2">
-        <HeaderContent>
-            <MudTh>ID</MudTh>
-            <MudTh>Cliente</MudTh>
-            <MudTh>Libro</MudTh>
-            <MudTh>Scadenza</MudTh>
-            <MudTh>Giorni ritardo</MudTh>
-            <MudTh>Multa stimata</MudTh>
-            <MudTh>Azioni</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd>@context.LoanId</MudTd>
-            <MudTd>@context.CustomerName</MudTd>
-            <MudTd>@context.BookTitle</MudTd>
-            <MudTd><MudChip T="string" Color="Color.Error" Size="Size.Small">@context.DueDate.ToString("dd/MM/yyyy")</MudChip></MudTd>
-            <MudTd>@context.DaysOverdue gg</MudTd>
-            <MudTd><b>€ @context.EstimatedFine.ToString("F2")</b></MudTd>
-            <MudTd>
-                <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
-                           Href="@($"/loans/return?loanId={context.LoanId}")">
-                    Restituisci
-                </MudButton>
-            </MudTd>
-        </RowTemplate>
-    </MudTable>
+    <MudAlert Severity="Severity.Warning" Class="mb-4">@_totalOverdue prestito/i in ritardo.</MudAlert>
 }
 
-@code {
-    private IEnumerable<LoanDetail>? _loans;
+<MudTable T="LoanDetail" ServerData="LoadData" Hover="true" Dense="true" Striped="true" Elevation="2" RowsPerPage="20"
+          Class="@(_totalOverdue == 0 ? "d-none" : "")">
+    <HeaderContent>
+        <MudTh>ID</MudTh>
+        <MudTh>Cliente</MudTh>
+        <MudTh>Libro</MudTh>
+        <MudTh>Scadenza</MudTh>
+        <MudTh>Giorni ritardo</MudTh>
+        <MudTh>Multa stimata</MudTh>
+        <MudTh>Azioni</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.LoanId</MudTd>
+        <MudTd>@context.CustomerName</MudTd>
+        <MudTd>@context.BookTitle</MudTd>
+        <MudTd><MudChip T="string" Color="Color.Error" Size="Size.Small">@context.DueDate.ToString("dd/MM/yyyy")</MudChip></MudTd>
+        <MudTd>@context.DaysOverdue gg</MudTd>
+        <MudTd><b>€ @context.EstimatedFine.ToString("F2")</b></MudTd>
+        <MudTd>
+            <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                       Href="@($"/loans/return?loanId={context.LoanId}")">
+                Restituisci
+            </MudButton>
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new int[]{10, 20, 50}" />
+    </PagerContent>
+</MudTable>
 
-    protected override async Task OnInitializedAsync()
-        => _loans = await LoanRepo.GetOverdueAsync();
+@code {
+    private int _totalOverdue = -1;
+
+    private async Task<TableData<LoanDetail>> LoadData(TableState state, CancellationToken ct)
+    {
+        var (items, total) = await LoanRepo.GetOverduePagedAsync(state.Page, state.PageSize);
+        _totalOverdue = total;
+        StateHasChanged();
+        return new TableData<LoanDetail> { Items = items, TotalItems = total };
+    }
 }

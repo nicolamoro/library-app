@@ -18,7 +18,7 @@ docker compose down
 docker compose down -v
 ```
 
-App runs at **http://localhost:8080**.
+App runs at **http://127.0.0.1:8080** (use `127.0.0.1`, not `localhost` — corporate VPN/proxy intercepts the `localhost` hostname on this machine).
 
 ## Running SQL scripts manually
 
@@ -78,6 +78,19 @@ SQL Server 2022. Loan lifecycle is managed by two stored procedures:
 - **`sp_return_book`** — sets `return_date`, computes `fine_amount` if overdue, increments `available_copies`
 
 Direct SQL queries are written inline in repositories using Dapper raw SQL (no ORM). `DateOnly` mapping requires the custom `DateOnlyTypeHandler` registered in `Program.cs`.
+
+### Pagination
+
+All list pages (Dashboard, Books, Customers, Loans) use **server-side pagination** via MudBlazor's `MudTable ServerData` pattern. Each repository exposes a dedicated paged method alongside the original `GetAllAsync`:
+
+| Repository method | Used by | Filter |
+|---|---|---|
+| `BookRepository.GetPagedAsync(page, pageSize, search?)` | BookList | LIKE on title / genre / authors |
+| `CustomerRepository.GetPagedAsync(page, pageSize, search?)` | CustomerList | LIKE on full name / email |
+| `LoanRepository.GetPagedAsync(page, pageSize, filter)` | LoanList | exact `status` match (`all` = no filter) |
+| `LoanRepository.GetOverduePagedAsync(page, pageSize)` | Home dashboard | `status = 'overdue'` or active past due |
+
+Each method runs **two SQL statements in one round-trip** via `QueryMultipleAsync`: a `COUNT(*)` and a `SELECT … OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY`. The UI uses `MudTablePager` with options `[10, 20, 50, 100]` rows per page (default 20). Search fields trigger `ReloadServerData()` with a 300 ms debounce.
 
 ### Dark mode
 

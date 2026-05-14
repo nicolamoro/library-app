@@ -13,67 +13,66 @@
     </MudButton>
 </MudStack>
 
-@if (_books is null)
-{
-    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
-}
-else
-{
-    <MudTable Items="_books" Hover="true" Dense="true" Striped="true" Elevation="2"
-              Filter="FilterFunc" @bind-SelectedItem="_selected">
-        <ToolBarContent>
-            <MudSpacer />
-            <MudTextField @bind-Value="_search" Placeholder="Cerca..." Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" />
-        </ToolBarContent>
-        <HeaderContent>
-            <MudTh>Titolo</MudTh>
-            <MudTh>Autori</MudTh>
-            <MudTh>Editore</MudTh>
-            <MudTh>Genere</MudTh>
-            <MudTh>Anno</MudTh>
-            <MudTh>Copie</MudTh>
-            <MudTh>Azioni</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd>@context.Title</MudTd>
-            <MudTd>@(context.AuthorsDisplay ?? "—")</MudTd>
-            <MudTd>@(context.PublisherName ?? "—")</MudTd>
-            <MudTd>@(context.GenreName ?? "—")</MudTd>
-            <MudTd>@(context.PublicationYear?.ToString() ?? "—")</MudTd>
-            <MudTd>
-                <MudChip T="string" Color="@(context.AvailableCopies > 0 ? Color.Success : Color.Error)" Size="Size.Small">
-                    @context.AvailableCopies / @context.TotalCopies
-                </MudChip>
-            </MudTd>
-            <MudTd>
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
-                               OnClick="@(() => Nav.NavigateTo($"/books/{context.BookId}"))" />
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
-                               OnClick="@(() => DeleteAsync(context))" />
-            </MudTd>
-        </RowTemplate>
-    </MudTable>
-}
+<MudTable @ref="_table" T="Book" ServerData="LoadData" Hover="true" Dense="true" Striped="true" Elevation="2" RowsPerPage="20">
+    <ToolBarContent>
+        <MudSpacer />
+        <MudTextField T="string" Value="_search" ValueChanged="OnSearchChanged"
+                      Placeholder="Cerca..." Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium"
+                      Class="mt-0" DebounceInterval="300" Immediate="true" />
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Titolo</MudTh>
+        <MudTh>Autori</MudTh>
+        <MudTh>Editore</MudTh>
+        <MudTh>Genere</MudTh>
+        <MudTh>Anno</MudTh>
+        <MudTh>Copie</MudTh>
+        <MudTh>Azioni</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.Title</MudTd>
+        <MudTd>@(context.AuthorsDisplay ?? "—")</MudTd>
+        <MudTd>@(context.PublisherName ?? "—")</MudTd>
+        <MudTd>@(context.GenreName ?? "—")</MudTd>
+        <MudTd>@(context.PublicationYear?.ToString() ?? "—")</MudTd>
+        <MudTd>
+            <MudChip T="string" Color="@(context.AvailableCopies > 0 ? Color.Success : Color.Error)" Size="Size.Small">
+                @context.AvailableCopies / @context.TotalCopies
+            </MudChip>
+        </MudTd>
+        <MudTd>
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
+                           OnClick="@(() => Nav.NavigateTo($"/books/{context.BookId}"))" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                           OnClick="@(() => DeleteAsync(context))" />
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new int[]{10, 20, 50, 100}" />
+    </PagerContent>
+</MudTable>
 
 @code {
-    private IEnumerable<Book>? _books;
-    private Book? _selected;
+    private MudTable<Book> _table = null!;
     private string _search = string.Empty;
 
-    protected override async Task OnInitializedAsync()
-        => _books = await BookRepo.GetAllAsync();
+    private async Task<TableData<Book>> LoadData(TableState state, CancellationToken ct)
+    {
+        var (items, total) = await BookRepo.GetPagedAsync(state.Page, state.PageSize, _search);
+        return new TableData<Book> { Items = items, TotalItems = total };
+    }
 
-    private bool FilterFunc(Book b) =>
-        string.IsNullOrWhiteSpace(_search) ||
-        b.Title.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
-        (b.AuthorsDisplay?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false) ||
-        (b.GenreName?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false);
+    private async Task OnSearchChanged(string value)
+    {
+        _search = value;
+        await _table.ReloadServerData();
+    }
 
     private async Task DeleteAsync(Book book)
     {
         await BookRepo.DeleteAsync(book.BookId);
-        _books = await BookRepo.GetAllAsync();
+        await _table.ReloadServerData();
         Snackbar.Add($"«{book.Title}» eliminato.", Severity.Success);
     }
 }

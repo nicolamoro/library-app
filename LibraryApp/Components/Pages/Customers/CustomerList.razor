@@ -13,63 +13,64 @@
     </MudButton>
 </MudStack>
 
-@if (_customers is null)
-{
-    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
-}
-else
-{
-    <MudTable Items="_customers" Hover="true" Dense="true" Striped="true" Elevation="2"
-              Filter="FilterFunc">
-        <ToolBarContent>
-            <MudSpacer />
-            <MudTextField @bind-Value="_search" Placeholder="Cerca..." Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Search" Class="mt-0" />
-        </ToolBarContent>
-        <HeaderContent>
-            <MudTh>Nome</MudTh>
-            <MudTh>Email</MudTh>
-            <MudTh>Telefono</MudTh>
-            <MudTh>Iscritto dal</MudTh>
-            <MudTh>Stato</MudTh>
-            <MudTh>Azioni</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd>@context.FullName</MudTd>
-            <MudTd>@(context.Email ?? "—")</MudTd>
-            <MudTd>@(context.Phone ?? "—")</MudTd>
-            <MudTd>@context.RegistrationDate.ToString("dd/MM/yyyy")</MudTd>
-            <MudTd>
-                <MudChip T="string" Color="@(context.Status == "active" ? Color.Success : Color.Warning)" Size="Size.Small">
-                    @(context.Status == "active" ? "Attivo" : "Sospeso")
-                </MudChip>
-            </MudTd>
-            <MudTd>
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
-                               OnClick="@(() => Nav.NavigateTo($"/customers/{context.CustomerId}"))" />
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
-                               OnClick="@(() => DeleteAsync(context))" />
-            </MudTd>
-        </RowTemplate>
-    </MudTable>
-}
+<MudTable @ref="_table" T="Customer" ServerData="LoadData" Hover="true" Dense="true" Striped="true" Elevation="2" RowsPerPage="20">
+    <ToolBarContent>
+        <MudSpacer />
+        <MudTextField T="string" Value="_search" ValueChanged="OnSearchChanged"
+                      Placeholder="Cerca..." Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Class="mt-0"
+                      DebounceInterval="300" Immediate="true" />
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Nome</MudTh>
+        <MudTh>Email</MudTh>
+        <MudTh>Telefono</MudTh>
+        <MudTh>Iscritto dal</MudTh>
+        <MudTh>Stato</MudTh>
+        <MudTh>Azioni</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.FullName</MudTd>
+        <MudTd>@(context.Email ?? "—")</MudTd>
+        <MudTd>@(context.Phone ?? "—")</MudTd>
+        <MudTd>@context.RegistrationDate.ToString("dd/MM/yyyy")</MudTd>
+        <MudTd>
+            <MudChip T="string" Color="@(context.Status == "active" ? Color.Success : Color.Warning)" Size="Size.Small">
+                @(context.Status == "active" ? "Attivo" : "Sospeso")
+            </MudChip>
+        </MudTd>
+        <MudTd>
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
+                           OnClick="@(() => Nav.NavigateTo($"/customers/{context.CustomerId}"))" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                           OnClick="@(() => DeleteAsync(context))" />
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new int[]{10, 20, 50, 100}" />
+    </PagerContent>
+</MudTable>
 
 @code {
-    private IEnumerable<Customer>? _customers;
+    private MudTable<Customer> _table = null!;
     private string _search = string.Empty;
 
-    protected override async Task OnInitializedAsync()
-        => _customers = await CustomerRepo.GetAllAsync();
+    private async Task<TableData<Customer>> LoadData(TableState state, CancellationToken ct)
+    {
+        var (items, total) = await CustomerRepo.GetPagedAsync(state.Page, state.PageSize, _search);
+        return new TableData<Customer> { Items = items, TotalItems = total };
+    }
 
-    private bool FilterFunc(Customer c) =>
-        string.IsNullOrWhiteSpace(_search) ||
-        c.FullName.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
-        (c.Email?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false);
+    private async Task OnSearchChanged(string value)
+    {
+        _search = value;
+        await _table.ReloadServerData();
+    }
 
     private async Task DeleteAsync(Customer customer)
     {
         await CustomerRepo.DeleteAsync(customer.CustomerId);
-        _customers = await CustomerRepo.GetAllAsync();
+        await _table.ReloadServerData();
         Snackbar.Add($"{customer.FullName} eliminato.", Severity.Success);
     }
 }
