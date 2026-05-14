@@ -30,6 +30,7 @@ db/
     01_schema.sql               — DDL: creazione database e tabelle
     02_procedures.sql           — stored procedure prestito/restituzione
     03_seed.sql                 — dati di esempio
+  seed_volume.sql               — seed opzionale ad alto volume (stress test)
 LibraryApp/
   Dockerfile                    — build multistage .NET 8
   Program.cs                    — entry point, DI, pipeline HTTP
@@ -233,6 +234,33 @@ sqlcmd -S localhost -U sa -P "StrongPass123!" -No -i db/init/01_schema.sql
 sqlcmd -S localhost -U sa -P "StrongPass123!" -No -d LibraryDB -i db/init/02_procedures.sql
 sqlcmd -S localhost -U sa -P "StrongPass123!" -No -d LibraryDB -i db/init/03_seed.sql
 ```
+
+### Volume seed (stress test)
+
+`db/seed_volume.sql` inserisce ~13.350 righe aggiuntive per test di carico:
+
+| Tabella | Righe aggiunte |
+|---|---|
+| `genres` | 14 |
+| `publishers` | 50 |
+| `authors` | 300 |
+| `books` | 1.000 + ~1.500 associazioni autori |
+| `customers` | 2.000 |
+| `loans` | 10.000 (70% restituiti, 20% attivi, 10% scaduti con multa) |
+
+Eseguire **dopo** il seed base, a richiesta:
+
+```sh
+# Tramite Docker (il container db deve essere in esecuzione)
+docker exec -i $(docker compose ps -q db) \
+  /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "StrongPass123!" -C \
+  -i /dev/stdin < db/seed_volume.sql
+
+# Oppure con sqlcmd installato localmente
+sqlcmd -S localhost -U sa -P "StrongPass123!" -No -d LibraryDB -i db/seed_volume.sql
+```
+
+Lo script **non è idempotente**: eseguirlo una seconda volta genera un errore e termina senza modifiche (guardia su `isbn LIKE 'VOL%'`). Per ripartire da zero: `docker compose down -v && docker compose up --build`.
 
 ## Query utili
 
