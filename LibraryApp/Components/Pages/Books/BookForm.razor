@@ -1,0 +1,118 @@
+@page "/books/new"
+@page "/books/{Id:int}"
+@inject BookRepository BookRepo
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>@(_isNew ? "Nuovo Libro" : "Modifica Libro") — Library</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@(_isNew ? "Nuovo Libro" : "Modifica Libro")</MudText>
+
+@if (_book is null)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudCard Elevation="2">
+        <MudCardContent>
+            <MudGrid>
+                <MudItem xs="12" md="8">
+                    <MudTextField @bind-Value="_book.Title" Label="Titolo" Required="true" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField @bind-Value="_book.Isbn" Label="ISBN" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int?" @bind-Value="_book.PublisherId" Label="Editore" Variant="Variant.Outlined">
+                        <MudSelectItem T="int?" Value="null">— Nessuno —</MudSelectItem>
+                        @foreach (var p in _publishers)
+                        {
+                            <MudSelectItem T="int?" Value="@p.PublisherId">@p.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int?" @bind-Value="_book.GenreId" Label="Genere" Variant="Variant.Outlined">
+                        <MudSelectItem T="int?" Value="null">— Nessuno —</MudSelectItem>
+                        @foreach (var g in _genres)
+                        {
+                            <MudSelectItem T="int?" Value="@g.GenreId">@g.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSelect T="int" MultiSelection="true" @bind-SelectedValues="_selectedAuthorIds"
+                               Label="Autori" Variant="Variant.Outlined">
+                        @foreach (var a in _authors)
+                        {
+                            <MudSelectItem T="int" Value="@a.AuthorId">@a.FullName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudNumericField T="short?" @bind-Value="_book.PublicationYear" Label="Anno" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudTextField @bind-Value="_book.Language" Label="Lingua" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudNumericField T="short?" @bind-Value="_book.PageCount" Label="Pagine" Variant="Variant.Outlined" Min="1" />
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudNumericField T="short" @bind-Value="_book.TotalCopies" Label="Copie totali" Variant="Variant.Outlined" Min="1" />
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+        <MudCardActions Class="pa-4">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" StartIcon="@Icons.Material.Filled.Save">
+                Salva
+            </MudButton>
+            <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="@(() => Nav.NavigateTo("/books"))" Class="ml-2">
+                Annulla
+            </MudButton>
+        </MudCardActions>
+    </MudCard>
+}
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private Book? _book;
+    private IEnumerable<Author> _authors = [];
+    private IEnumerable<Publisher> _publishers = [];
+    private IEnumerable<Genre> _genres = [];
+    private IReadOnlyCollection<int> _selectedAuthorIds = [];
+    private bool _isNew;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _authors = await BookRepo.GetAllAuthorsAsync();
+        _publishers = await BookRepo.GetAllPublishersAsync();
+        _genres = await BookRepo.GetAllGenresAsync();
+
+        if (Id is null)
+        {
+            _isNew = true;
+            _book = new Book();
+        }
+        else
+        {
+            _book = await BookRepo.GetByIdAsync(Id.Value);
+            if (_book is null) { Nav.NavigateTo("/books"); return; }
+            _selectedAuthorIds = (await BookRepo.GetAuthorIdsAsync(Id.Value)).ToList();
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_book!.Title)) { Snackbar.Add("Il titolo è obbligatorio.", Severity.Warning); return; }
+        _book.SelectedAuthorIds = _selectedAuthorIds.ToList();
+        if (_isNew)
+            await BookRepo.CreateAsync(_book);
+        else
+            await BookRepo.UpdateAsync(_book);
+        Snackbar.Add("Libro salvato.", Severity.Success);
+        Nav.NavigateTo("/books");
+    }
+}

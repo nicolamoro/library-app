@@ -1,0 +1,53 @@
+@page "/"
+@inject LoanRepository LoanRepo
+
+<PageTitle>Dashboard — Library</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-1">Dashboard</MudText>
+<MudText Typo="Typo.subtitle1" Class="mb-4 mud-text-secondary">Prestiti scaduti o in ritardo</MudText>
+
+@if (_loans is null)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else if (!_loans.Any())
+{
+    <MudAlert Severity="Severity.Success" Class="mt-4">Nessun prestito scaduto. Tutto in ordine!</MudAlert>
+}
+else
+{
+    <MudAlert Severity="Severity.Warning" Class="mb-4">@_loans.Count() prestito/i in ritardo.</MudAlert>
+
+    <MudTable Items="_loans" Hover="true" Dense="true" Striped="true" Elevation="2">
+        <HeaderContent>
+            <MudTh>ID</MudTh>
+            <MudTh>Cliente</MudTh>
+            <MudTh>Libro</MudTh>
+            <MudTh>Scadenza</MudTh>
+            <MudTh>Giorni ritardo</MudTh>
+            <MudTh>Multa stimata</MudTh>
+            <MudTh>Azioni</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.LoanId</MudTd>
+            <MudTd>@context.CustomerName</MudTd>
+            <MudTd>@context.BookTitle</MudTd>
+            <MudTd><MudChip T="string" Color="Color.Error" Size="Size.Small">@context.DueDate.ToString("dd/MM/yyyy")</MudChip></MudTd>
+            <MudTd>@context.DaysOverdue gg</MudTd>
+            <MudTd><b>€ @context.EstimatedFine.ToString("F2")</b></MudTd>
+            <MudTd>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                           Href="@($"/loans/return?loanId={context.LoanId}")">
+                    Restituisci
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private IEnumerable<LoanDetail>? _loans;
+
+    protected override async Task OnInitializedAsync()
+        => _loans = await LoanRepo.GetOverdueAsync();
+}

@@ -1,0 +1,101 @@
+@page "/loans/return"
+@inject LoanRepository LoanRepo
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Restituzione — Library</PageTitle>
+<MudText Typo="Typo.h4" Class="mb-4">Restituzione Libro</MudText>
+
+@if (_activeLoans is null)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else if (!_activeLoans.Any())
+{
+    <MudAlert Severity="Severity.Info">Nessun prestito attivo al momento.</MudAlert>
+}
+else
+{
+    <MudCard Elevation="2" Style="max-width:600px">
+        <MudCardContent>
+            <MudSelect T="int?" Value="_loanId" ValueChanged="OnLoanSelected" Label="Seleziona prestito" Variant="Variant.Outlined">
+                <MudSelectItem T="int?" Value="null">— Seleziona —</MudSelectItem>
+                @foreach (var l in _activeLoans)
+                {
+                    <MudSelectItem T="int?" Value="@l.LoanId">
+                        #@l.LoanId — @l.CustomerName — @l.BookTitle (scade @l.DueDate.ToString("dd/MM/yyyy"))
+                    </MudSelectItem>
+                }
+            </MudSelect>
+
+            @if (_selected is not null)
+            {
+                <MudDivider Class="my-4" />
+                <MudStack Spacing="1">
+                    <MudText><b>Cliente:</b> @_selected.CustomerName</MudText>
+                    <MudText><b>Libro:</b> @_selected.BookTitle</MudText>
+                    <MudText><b>Scadenza:</b> @_selected.DueDate.ToString("dd/MM/yyyy")</MudText>
+                    @if (_selected.DaysOverdue > 0)
+                    {
+                        <MudAlert Severity="Severity.Warning" Class="mt-2">
+                            In ritardo di <b>@_selected.DaysOverdue giorni</b>.
+                            Multa stimata: <b>€ @_selected.EstimatedFine.ToString("F2")</b>
+                        </MudAlert>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Success" Class="mt-2">Restituzione nei tempi. Nessuna multa.</MudAlert>
+                    }
+                </MudStack>
+            }
+        </MudCardContent>
+        <MudCardActions Class="pa-4">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitAsync"
+                       StartIcon="@Icons.Material.Filled.AssignmentReturn"
+                       Disabled="@(_loanId is null || _loading)">
+                Conferma Restituzione
+            </MudButton>
+            <MudButton Variant="Variant.Text" OnClick="@(() => Nav.NavigateTo("/loans"))" Class="ml-2">
+                Annulla
+            </MudButton>
+        </MudCardActions>
+    </MudCard>
+}
+
+@code {
+    [SupplyParameterFromQuery] public int? LoanId { get; set; }
+
+    private IEnumerable<LoanDetail>? _activeLoans;
+    private LoanDetail? _selected;
+    private int? _loanId;
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _activeLoans = await LoanRepo.GetActiveAsync();
+        if (LoanId.HasValue) OnLoanSelected(LoanId.Value);
+    }
+
+    private void OnLoanSelected(int? id)
+    {
+        _loanId = id;
+        _selected = id.HasValue ? _activeLoans?.FirstOrDefault(l => l.LoanId == id) : null;
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_loanId is null) return;
+        _loading = true;
+        try
+        {
+            await LoanRepo.ReturnAsync(_loanId.Value);
+            Snackbar.Add("Restituzione registrata con successo.", Severity.Success);
+            Nav.NavigateTo("/loans");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Errore: {ex.Message}", Severity.Error);
+        }
+        finally { _loading = false; }
+    }
+}

@@ -1,0 +1,90 @@
+@page "/loans"
+@inject LoanRepository LoanRepo
+@inject NavigationManager Nav
+
+<PageTitle>Prestiti — Library</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h4" Style="flex:1">Prestiti</MudText>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+               OnClick="@(() => Nav.NavigateTo("/loans/borrow"))">
+        Nuovo Prestito
+    </MudButton>
+</MudStack>
+
+<MudButtonGroup Variant="Variant.Outlined" Color="Color.Primary" Class="mb-4">
+    <MudButton OnClick="@(() => SetFilter("all"))"
+               Variant="@(_filter == "all" ? Variant.Filled : Variant.Outlined)">Tutti</MudButton>
+    <MudButton OnClick="@(() => SetFilter("active"))"
+               Variant="@(_filter == "active" ? Variant.Filled : Variant.Outlined)">Attivi</MudButton>
+    <MudButton OnClick="@(() => SetFilter("overdue"))"
+               Variant="@(_filter == "overdue" ? Variant.Filled : Variant.Outlined)">Scaduti</MudButton>
+    <MudButton OnClick="@(() => SetFilter("returned"))"
+               Variant="@(_filter == "returned" ? Variant.Filled : Variant.Outlined)">Restituiti</MudButton>
+</MudButtonGroup>
+
+@if (_loans is null)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudTable Items="Filtered" Hover="true" Dense="true" Striped="true" Elevation="2">
+        <HeaderContent>
+            <MudTh>ID</MudTh>
+            <MudTh>Cliente</MudTh>
+            <MudTh>Libro</MudTh>
+            <MudTh>Prestito</MudTh>
+            <MudTh>Scadenza</MudTh>
+            <MudTh>Restituzione</MudTh>
+            <MudTh>Stato</MudTh>
+            <MudTh>Multa</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.LoanId</MudTd>
+            <MudTd>@context.CustomerName</MudTd>
+            <MudTd>@context.BookTitle</MudTd>
+            <MudTd>@context.LoanDate.ToString("dd/MM/yyyy")</MudTd>
+            <MudTd>@context.DueDate.ToString("dd/MM/yyyy")</MudTd>
+            <MudTd>@(context.ReturnDate?.ToString("dd/MM/yyyy") ?? "—")</MudTd>
+            <MudTd>
+                <MudChip T="string" Size="Size.Small" Color="@StatusColor(context.Status)">
+                    @context.Status
+                </MudChip>
+            </MudTd>
+            <MudTd>
+                @if (context.FineAmount.HasValue)
+                {
+                    <MudText Color="@(context.FinePaid ? Color.Default : Color.Error)">
+                        € @context.FineAmount.Value.ToString("F2")
+                        @(context.FinePaid ? "✓" : "")
+                    </MudText>
+                }
+                else { <text>—</text> }
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private IEnumerable<LoanDetail>? _loans;
+    private string _filter = "all";
+
+    private IEnumerable<LoanDetail> Filtered =>
+        _loans is null ? [] :
+        _filter == "all" ? _loans :
+        _loans.Where(l => l.Status == _filter);
+
+    protected override async Task OnInitializedAsync()
+        => _loans = await LoanRepo.GetAllAsync();
+
+    private void SetFilter(string f) => _filter = f;
+
+    private Color StatusColor(string status) => status switch
+    {
+        "active"   => Color.Info,
+        "returned" => Color.Success,
+        "overdue"  => Color.Error,
+        _          => Color.Default
+    };
+}

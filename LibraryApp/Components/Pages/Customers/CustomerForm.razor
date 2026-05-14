@@ -1,0 +1,101 @@
+@page "/customers/new"
+@page "/customers/{Id:int}"
+@inject CustomerRepository CustomerRepo
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>@(_isNew ? "Nuovo Cliente" : "Modifica Cliente") — Library</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@(_isNew ? "Nuovo Cliente" : "Modifica Cliente")</MudText>
+
+@if (_customer is null)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudCard Elevation="2">
+        <MudCardContent>
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_customer.FirstName" Label="Nome" Required="true" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_customer.LastName" Label="Cognome" Required="true" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_customer.Email" Label="Email" InputType="InputType.Email" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_customer.Phone" Label="Telefono" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_customer.TaxCode" Label="Codice Fiscale" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="_birthDateProxy" Label="Data di nascita" Variant="Variant.Outlined"
+                                   DateFormat="dd/MM/yyyy" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_customer.Address" Label="Indirizzo" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="string" @bind-Value="_customer.Status" Label="Stato" Variant="Variant.Outlined">
+                        <MudSelectItem Value="@("active")">Attivo</MudSelectItem>
+                        <MudSelectItem Value="@("suspended")">Sospeso</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+        <MudCardActions Class="pa-4">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" StartIcon="@Icons.Material.Filled.Save">
+                Salva
+            </MudButton>
+            <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="@(() => Nav.NavigateTo("/customers"))" Class="ml-2">
+                Annulla
+            </MudButton>
+        </MudCardActions>
+    </MudCard>
+}
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private Customer? _customer;
+    private bool _isNew;
+
+    private DateTime? _birthDateProxy
+    {
+        get => _customer?.BirthDate?.ToDateTime(TimeOnly.MinValue);
+        set => _customer!.BirthDate = value.HasValue ? DateOnly.FromDateTime(value.Value) : null;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id is null)
+        {
+            _isNew = true;
+            _customer = new Customer { RegistrationDate = DateOnly.FromDateTime(DateTime.Today) };
+        }
+        else
+        {
+            _customer = await CustomerRepo.GetByIdAsync(Id.Value);
+            if (_customer is null) Nav.NavigateTo("/customers");
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_customer!.FirstName) || string.IsNullOrWhiteSpace(_customer.LastName))
+        {
+            Snackbar.Add("Nome e cognome sono obbligatori.", Severity.Warning);
+            return;
+        }
+        if (_isNew)
+            await CustomerRepo.CreateAsync(_customer);
+        else
+            await CustomerRepo.UpdateAsync(_customer);
+        Snackbar.Add("Cliente salvato.", Severity.Success);
+        Nav.NavigateTo("/customers");
+    }
+}
