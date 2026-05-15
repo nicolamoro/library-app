@@ -32,7 +32,7 @@ db/
     03_seed.sql                 — dati di esempio
   seed_volume.sql               — seed opzionale ad alto volume (stress test)
 LibraryApp/
-  Dockerfile                    — build multistage .NET 8
+  Dockerfile                    — build multistage .NET 10
   Program.cs                    — entry point, DI, pipeline HTTP
   Components/
     Layout/
