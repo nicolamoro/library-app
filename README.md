@@ -1,6 +1,6 @@
 # Library Management System
 
-Applicazione web per la gestione di una biblioteca: catalogo libri, anagrafica clienti e ciclo di vita dei prestiti con calcolo automatico delle multe per ritardo.
+Applicazione web per la gestione di una biblioteca: catalogo libri, anagrafica utenti e ciclo di vita dei prestiti con calcolo automatico delle multe per ritardo.
 
 ## Stack tecnologico
 
@@ -15,7 +15,7 @@ Applicazione web per la gestione di una biblioteca: catalogo libri, anagrafica c
 
 - **Dashboard** — mostra i prestiti scaduti o in ritardo con multa stimata e collegamento diretto alla restituzione
 - **Catalogo libri** — lista ricercabile con filtro testuale, creazione e modifica libri (autori multipli, editore, genere, anno, lingua, copie)
-- **Anagrafica clienti** — lista con badge di stato (attivo/sospeso), creazione e modifica, sospensione bloccante per nuovi prestiti
+- **Anagrafica utenti** — lista con badge di stato (attivo/sospeso), creazione e modifica, sospensione bloccante per nuovi prestiti
 - **Gestione prestiti** — lista filtrabile per stato, nuovo prestito con controllo disponibilità, restituzione con calcolo multa in tempo reale
 - **Dark mode** — toggle luna/sole nella barra superiore; la preferenza è persistita in `localStorage`
 
@@ -43,9 +43,9 @@ LibraryApp/
       Books/
         BookList.razor          — lista e ricerca libri
         BookForm.razor          — form creazione/modifica libro
-      Customers/
-        CustomerList.razor      — lista clienti
-        CustomerForm.razor      — form creazione/modifica cliente
+      Users/
+        UserList.razor          — lista utenti
+        UserForm.razor          — form creazione/modifica utente
       Loans/
         LoanList.razor          — lista prestiti con filtro stato
         BorrowBook.razor        — nuovo prestito
@@ -53,11 +53,11 @@ LibraryApp/
   Data/
     DapperContext.cs            — factory connessioni SQL Server
     BookRepository.cs           — CRUD libri, autori, generi, editori
-    CustomerRepository.cs       — CRUD clienti
+    UserRepository.cs           — CRUD utenti
     LoanRepository.cs           — CRUD prestiti, prestiti scaduti
   Models/
     Book.cs, Author.cs, Genre.cs, Publisher.cs
-    Customer.cs
+    User.cs
     LoanDetail.cs               — include giorni ritardo e multa stimata (computed)
   wwwroot/
     app.css                     — stili globali e overrides dark mode per validation
@@ -94,7 +94,7 @@ publishers ──────┤
                  ▼
 authors ──── book_authors ──── books
                                  │ FK
-customers ──── loans ────────────┘
+users ────── loans ──────────────┘
 ```
 
 ### genres
@@ -150,10 +150,10 @@ Relazione N:N tra `books` e `authors`.
 | `book_id` | INT | PK, FK → books |
 | `author_id` | INT | PK, FK → authors |
 
-### customers
+### users
 | Colonna | Tipo | Note |
 |---|---|---|
-| `customer_id` | INT IDENTITY | PK |
+| `user_id` | INT IDENTITY | PK |
 | `first_name` | NVARCHAR(100) | NOT NULL |
 | `last_name` | NVARCHAR(100) | NOT NULL |
 | `birth_date` | DATE | |
@@ -163,12 +163,16 @@ Relazione N:N tra `books` e `authors`.
 | `email` | NVARCHAR(150) | |
 | `registration_date` | DATE | NOT NULL, DEFAULT GETDATE() |
 | `status` | NVARCHAR(20) | `active` \| `suspended`, DEFAULT `active` |
+| `username` | NVARCHAR(150) | UNIQUE (filtered, esclusi NULL) |
+| `password_hash` | NVARCHAR(100) | BCrypt work factor 12 |
+| `is_admin` | BIT | NOT NULL, DEFAULT 0 |
+| `last_login` | DATETIME2 | aggiornato ad ogni login |
 
 ### loans
 | Colonna | Tipo | Note |
 |---|---|---|
 | `loan_id` | INT IDENTITY | PK |
-| `customer_id` | INT | FK → customers |
+| `user_id` | INT | FK → users |
 | `book_id` | INT | FK → books |
 | `loan_date` | DATE | NOT NULL, DEFAULT GETDATE() |
 | `due_date` | DATE | NOT NULL, deve essere > `loan_date` |
@@ -188,18 +192,18 @@ Vincoli: `due_date > loan_date`; `return_date ≥ loan_date` se valorizzata.
 
 ```sql
 EXEC sp_borrow_book
-    @customer_id     = 1,    -- ID cliente
+    @user_id         = 1,    -- ID utente
     @book_id         = 3,    -- ID libro
     @loan_days       = 30,   -- durata prestito in giorni (default 30)
     @daily_fine_rate = 0.50  -- tariffa giornaliera multa (default 0.50)
 ```
 
-Verifica che il cliente sia `active` e che esistano copie disponibili, inserisce il record in `loans` e decrementa `available_copies`.
+Verifica che l'utente sia `active` e che esistano copie disponibili, inserisce il record in `loans` e decrementa `available_copies`.
 
 | Errore | Messaggio |
 |---|---|
-| 50001 | `Customer not found.` |
-| 50002 | `Customer account is suspended.` |
+| 50001 | `User not found.` |
+| 50002 | `User account is suspended.` |
 | 50003 | `Book not found.` |
 | 50004 | `No copies available for this book.` |
 
@@ -245,7 +249,7 @@ sqlcmd -S localhost -U sa -P "StrongPass123!" -No -d LibraryDB -i db/init/03_see
 | `publishers` | 50 |
 | `authors` | 300 |
 | `books` | 1.000 + ~1.500 associazioni autori |
-| `customers` | 2.000 |
+| `users` | 2.000 |
 | `loans` | 10.000 (70% restituiti, 20% attivi, 10% scaduti con multa) |
 
 Eseguire **dopo** il seed base, a richiesta:
@@ -275,14 +279,14 @@ WHERE available_copies > 0;
 ```sql
 SELECT
     l.loan_id,
-    c.first_name + ' ' + c.last_name AS customer,
+    u.first_name + ' ' + u.last_name AS user_full_name,
     b.title,
     l.due_date,
     DATEDIFF(DAY, l.due_date, CAST(GETDATE() AS DATE)) AS days_overdue,
     DATEDIFF(DAY, l.due_date, CAST(GETDATE() AS DATE)) * l.daily_fine_rate AS calculated_fine
 FROM loans l
-JOIN customers c ON c.customer_id = l.customer_id
-JOIN books     b ON b.book_id     = l.book_id
+JOIN users u ON u.user_id = l.user_id
+JOIN books b ON b.book_id = l.book_id
 WHERE l.status = 'overdue'
    OR (l.status = 'active' AND l.due_date < CAST(GETDATE() AS DATE));
 ```

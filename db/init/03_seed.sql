@@ -5,6 +5,9 @@
 USE LibraryDB;
 GO
 
+SET QUOTED_IDENTIFIER ON;
+GO
+
 -- genres
 INSERT INTO genres (name, description) VALUES
     ('Fantasy',            'Narrativa fantastica con elementi magici e mondi immaginari'),
@@ -58,13 +61,17 @@ INSERT INTO book_authors (book_id, author_id) VALUES
     (8, 6);  -- Harry Potter → Rowling
 GO
 
--- customers
-INSERT INTO customers (first_name, last_name, birth_date, tax_code, address, phone, email, registration_date, status) VALUES
-    ('Mario',     'Rossi',    '1985-03-12', 'RSSMRA85C12H501Z', 'Via Roma 10, Milano',       '3331234567', 'mario.rossi@email.it',     '2023-01-15', 'active'),
-    ('Lucia',     'Bianchi',  '1992-07-24', 'BNCLCU92L64F205X', 'Corso Vittorio 5, Torino',  '3459876543', 'lucia.bianchi@email.it',   '2023-03-22', 'active'),
-    ('Francesco', 'Conti',    '1978-11-03', 'CNTFNC78S03L219W', 'Via Garibaldi 33, Bologna', '3381122334', 'f.conti@email.it',         '2024-02-10', 'active'),
-    ('Giulia',    'Marino',   '1990-05-17', 'MRNGLU90E57F839P', 'Piazza Dante 7, Napoli',    '3204455667', 'giulia.marino@email.it',   '2024-06-01', 'active'),
-    ('Antonio',   'De Luca',  '1965-09-30', 'DLCNTN65P30H501B', 'Via Nazionale 88, Roma',    '3667788990', 'antonio.deluca@email.it',  '2022-11-05', 'suspended');
+-- users — password "user123"
+INSERT INTO users (first_name, last_name, birth_date, tax_code, address, phone, email, registration_date, status, username, password_hash) VALUES
+    ('Mario',     'Rossi',   '1985-03-12', 'RSSMRA85C12H501Z', 'Via Roma 10, Milano',       '3331234567', 'mario.rossi@email.it',    '2023-01-15', 'active',    'mario.rossi@email.it',    '$2a$12$vfhLGjT3/IzLIYn6O/w8Wu..bkp3qQj5vAfaXbgp3P90kTWk7gz6a'),
+    ('Lucia',     'Bianchi', '1992-07-24', 'BNCLCU92L64F205X', 'Corso Vittorio 5, Torino',  '3459876543', 'lucia.bianchi@email.it',  '2023-03-22', 'active',    'lucia.bianchi@email.it',  '$2a$12$vfhLGjT3/IzLIYn6O/w8Wu..bkp3qQj5vAfaXbgp3P90kTWk7gz6a'),
+    ('Francesco', 'Conti',   '1978-11-03', 'CNTFNC78S03L219W', 'Via Garibaldi 33, Bologna', '3381122334', 'f.conti@email.it',        '2024-02-10', 'active',    'f.conti@email.it',        '$2a$12$vfhLGjT3/IzLIYn6O/w8Wu..bkp3qQj5vAfaXbgp3P90kTWk7gz6a'),
+    ('Giulia',    'Marino',  '1990-05-17', 'MRNGLU90E57F839P', 'Piazza Dante 7, Napoli',    '3204455667', 'giulia.marino@email.it',  '2024-06-01', 'active',    'giulia.marino@email.it',  '$2a$12$vfhLGjT3/IzLIYn6O/w8Wu..bkp3qQj5vAfaXbgp3P90kTWk7gz6a'),
+    ('Antonio',   'De Luca', '1965-09-30', 'DLCNTN65P30H501B', 'Via Nazionale 88, Roma',    '3667788990', 'antonio.deluca@email.it', '2022-11-05', 'suspended', 'antonio.deluca@email.it', '$2a$12$vfhLGjT3/IzLIYn6O/w8Wu..bkp3qQj5vAfaXbgp3P90kTWk7gz6a');
+GO
+
+INSERT INTO users (first_name, last_name, username, password_hash, is_admin, registration_date, status)
+VALUES ('Admin', 'Admin', 'admin', '$2a$12$jUdgyLqapIXlfh7J0zZKA.04tWFuKPiRp5uZE0APZm0/alOUk2ZgC', 1, CAST(GETDATE() AS DATE), 'active');
 GO
 
 -- loans
@@ -74,7 +81,7 @@ GO
 -- Prestito 4: Mario Rossi — The Shining — SCADUTO (33 giorni, multa 16.50)
 -- Prestito 5: Giulia Marino — L'Amica Geniale — RESTITUITO
 -- Prestito 6: Lucia Bianchi — La Fattoria degli Animali — RESTITUITO
-INSERT INTO loans (customer_id, book_id, loan_date, due_date, return_date, status, daily_fine_rate, fine_amount, fine_paid) VALUES
+INSERT INTO loans (user_id, book_id, loan_date, due_date, return_date, status, daily_fine_rate, fine_amount, fine_paid) VALUES
     (1, 1, '2026-04-20', '2026-05-20', NULL,         'active',    0.50, NULL,  0),
     (2, 4, '2026-03-01', '2026-03-31', '2026-03-28', 'returned',  0.50, NULL,  0),
     (3, 8, '2026-05-01', '2026-05-31', NULL,         'active',    0.50, NULL,  0),

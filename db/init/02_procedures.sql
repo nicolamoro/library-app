@@ -5,23 +5,28 @@
 USE LibraryDB;
 GO
 
+SET QUOTED_IDENTIFIER ON;
+GO
+
+
+
 -- ------------------------------------------------------------
 -- sp_borrow_book
---   Registra un nuovo prestito per un cliente.
+--   Registra un nuovo prestito per un utente.
 --
---   @customer_id     : ID del cliente
+--   @user_id         : ID dell'utente
 --   @book_id         : ID del libro da prendere in prestito
 --   @loan_days       : durata del prestito in giorni (default 30)
 --   @daily_fine_rate : tariffa giornaliera multa (default 0.50)
 --
 --   Errori:
---     50001 – cliente non trovato
---     50002 – cliente sospeso
+--     50001 – utente non trovato
+--     50002 – utente sospeso
 --     50003 – libro non trovato
 --     50004 – nessuna copia disponibile
 -- ------------------------------------------------------------
 CREATE OR ALTER PROCEDURE sp_borrow_book
-    @customer_id     INT,
+    @user_id         INT,
     @book_id         INT,
     @loan_days       INT          = 30,
     @daily_fine_rate DECIMAL(5,2) = 0.50
@@ -29,14 +34,14 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @customer_status NVARCHAR(20);
-    SELECT @customer_status = status FROM customers WHERE customer_id = @customer_id;
+    DECLARE @user_status NVARCHAR(20);
+    SELECT @user_status = status FROM users WHERE user_id = @user_id;
 
-    IF @customer_status IS NULL
-        THROW 50001, 'Customer not found.', 1;
+    IF @user_status IS NULL
+        THROW 50001, 'User not found.', 1;
 
-    IF @customer_status <> 'active'
-        THROW 50002, 'Customer account is suspended.', 1;
+    IF @user_status <> 'active'
+        THROW 50002, 'User account is suspended.', 1;
 
     DECLARE @available SMALLINT;
     SELECT @available = available_copies FROM books WHERE book_id = @book_id;
@@ -52,8 +57,8 @@ BEGIN
         DECLARE @loan_date DATE = CAST(GETDATE() AS DATE);
         DECLARE @due_date  DATE = DATEADD(DAY, @loan_days, @loan_date);
 
-        INSERT INTO loans (customer_id, book_id, loan_date, due_date, daily_fine_rate)
-        VALUES (@customer_id, @book_id, @loan_date, @due_date, @daily_fine_rate);
+        INSERT INTO loans (user_id, book_id, loan_date, due_date, daily_fine_rate)
+        VALUES (@user_id, @book_id, @loan_date, @due_date, @daily_fine_rate);
 
         DECLARE @loan_id INT = SCOPE_IDENTITY();
 
@@ -65,14 +70,14 @@ BEGIN
 
         SELECT
             l.loan_id,
-            c.first_name + ' ' + c.last_name AS customer,
+            u.first_name + ' ' + u.last_name AS user_full_name,
             b.title,
             l.loan_date,
             l.due_date,
             l.status
         FROM loans l
-        JOIN customers c ON c.customer_id = l.customer_id
-        JOIN books     b ON b.book_id     = l.book_id
+        JOIN users u ON u.user_id = l.user_id
+        JOIN books b ON b.book_id = l.book_id
         WHERE l.loan_id = @loan_id;
     END TRY
     BEGIN CATCH
@@ -145,7 +150,7 @@ BEGIN
 
         SELECT
             l.loan_id,
-            c.first_name + ' ' + c.last_name                             AS customer,
+            u.first_name + ' ' + u.last_name                             AS user_full_name,
             b.title,
             l.loan_date,
             l.due_date,
@@ -157,8 +162,8 @@ BEGIN
                  ELSE 'unpaid'
             END                                                           AS fine_status
         FROM loans l
-        JOIN customers c ON c.customer_id = l.customer_id
-        JOIN books     b ON b.book_id     = l.book_id
+        JOIN users u ON u.user_id = l.user_id
+        JOIN books b ON b.book_id = l.book_id
         WHERE l.loan_id = @loan_id;
     END TRY
     BEGIN CATCH

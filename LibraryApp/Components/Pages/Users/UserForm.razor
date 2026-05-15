@@ -1,0 +1,144 @@
+@page "/users/new"
+@page "/users/edit/{Id:int}"
+@attribute [Authorize(Roles = "admin")]
+@inject UserRepository UserRepo
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>@(_isNew ? "Nuovo Utente" : "Modifica Utente") — Library</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@(_isNew ? "Nuovo Utente" : "Modifica Utente")</MudText>
+
+@if (_user is null)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudCard Elevation="2">
+        <MudCardContent>
+            <MudText Typo="Typo.h6" Class="mb-3">Dati Anagrafici</MudText>
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_user.FirstName" Label="Nome" Required="true" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_user.LastName" Label="Cognome" Required="true" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_user.Email" Label="Email" InputType="InputType.Email" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_user.Phone" Label="Telefono" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_user.TaxCode" Label="Codice Fiscale" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="_birthDateProxy" Label="Data di nascita" Variant="Variant.Outlined"
+                                   DateFormat="dd/MM/yyyy" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_user.Address" Label="Indirizzo" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="string" @bind-Value="_user.Status" Label="Stato" Variant="Variant.Outlined">
+                        <MudSelectItem Value="@("active")">Attivo</MudSelectItem>
+                        <MudSelectItem Value="@("suspended")">Sospeso</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+            <MudDivider Class="my-4" />
+            <MudText Typo="Typo.h6" Class="mb-3">Account</MudText>
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_user.Username" Label="Username" Required="true" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_password"
+                                  Label="@(_isNew ? "Password" : "Nuova Password")"
+                                  InputType="InputType.Password"
+                                  Variant="Variant.Outlined"
+                                  Required="_isNew"
+                                  HelperText="@(_isNew ? "" : "Lascia vuoto per non modificare")" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSwitch @bind-Value="_user.IsAdmin" Label="Amministratore" Color="Color.Secondary" />
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+        <MudCardActions Class="pa-4">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync"
+                       StartIcon="@Icons.Material.Filled.Save">
+                Salva
+            </MudButton>
+            <MudButton Variant="Variant.Text" Color="Color.Default"
+                       OnClick="@(() => Nav.NavigateTo("/users"))" Class="ml-2">
+                Annulla
+            </MudButton>
+        </MudCardActions>
+    </MudCard>
+}
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private User? _user;
+    private bool _isNew;
+    private string _password = string.Empty;
+
+    private DateTime? _birthDateProxy
+    {
+        get => _user?.BirthDate?.ToDateTime(TimeOnly.MinValue);
+        set => _user!.BirthDate = value.HasValue ? DateOnly.FromDateTime(value.Value) : null;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id is null)
+        {
+            _isNew = true;
+            _user = new User { RegistrationDate = DateOnly.FromDateTime(DateTime.Today) };
+        }
+        else
+        {
+            _user = await UserRepo.GetByIdAsync(Id.Value);
+            if (_user is null) Nav.NavigateTo("/users");
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_user!.FirstName) || string.IsNullOrWhiteSpace(_user.LastName))
+        {
+            Snackbar.Add("Nome e cognome sono obbligatori.", Severity.Warning);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_user.Username))
+        {
+            Snackbar.Add("L'username è obbligatorio.", Severity.Warning);
+            return;
+        }
+        if (_isNew && string.IsNullOrWhiteSpace(_password))
+        {
+            Snackbar.Add("La password è obbligatoria per i nuovi utenti.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            if (_isNew)
+                await UserRepo.CreateAsync(_user, _password);
+            else
+                await UserRepo.UpdateAsync(_user, string.IsNullOrWhiteSpace(_password) ? null : _password);
+
+            Snackbar.Add("Utente salvato.", Severity.Success);
+            Nav.NavigateTo("/users");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Errore: {ex.Message}", Severity.Error);
+        }
+    }
+}

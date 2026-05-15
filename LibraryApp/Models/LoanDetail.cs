@@ -3,8 +3,8 @@ namespace LibraryApp.Models;
 public class LoanDetail
 {
     public int LoanId { get; set; }
-    public int CustomerId { get; set; }
-    public string CustomerName { get; set; } = string.Empty;
+    public int UserId { get; set; }
+    public string UserFullName { get; set; } = string.Empty;
     public int BookId { get; set; }
     public string BookTitle { get; set; } = string.Empty;
     public DateOnly LoanDate { get; set; }

@@ -1,0 +1,90 @@
+@page "/my-loans"
+@attribute [Authorize(Roles = "user")]
+@inject LoanRepository LoanRepo
+@inject AuthenticationStateProvider AuthState
+
+<PageTitle>I Miei Prestiti — Library</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-1">I Miei Prestiti</MudText>
+<MudText Typo="Typo.subtitle1" Class="mb-4 mud-text-secondary">Storico completo dei tuoi prestiti</MudText>
+
+<MudTable @ref="_table" T="LoanDetail" ServerData="LoadData" Hover="true" Dense="true" Striped="true" Elevation="2" RowsPerPage="20">
+    <HeaderContent>
+        <MudTh>Libro</MudTh>
+        <MudTh>Data Prestito</MudTh>
+        <MudTh>Scadenza</MudTh>
+        <MudTh>Restituzione</MudTh>
+        <MudTh>Stato</MudTh>
+        <MudTh>Multa</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.BookTitle</MudTd>
+        <MudTd>@context.LoanDate.ToString("dd/MM/yyyy")</MudTd>
+        <MudTd>@context.DueDate.ToString("dd/MM/yyyy")</MudTd>
+        <MudTd>@(context.ReturnDate?.ToString("dd/MM/yyyy") ?? "—")</MudTd>
+        <MudTd>
+            <MudChip T="string" Size="Size.Small" Color="@StatusColor(context.Status)">
+                @StatusLabel(context.Status)
+            </MudChip>
+        </MudTd>
+        <MudTd>
+            @if (context.FineAmount.HasValue)
+            {
+                <MudText Color="@(context.FinePaid ? Color.Default : Color.Error)">
+                    € @context.FineAmount.Value.ToString("F2")
+                    @(context.FinePaid ? " ✓" : "")
+                </MudText>
+            }
+            else if (context.DaysOverdue > 0)
+            {
+                <MudText Color="Color.Warning">
+                    ~€ @context.EstimatedFine.ToString("F2")
+                </MudText>
+            }
+            else
+            {
+                <MudText>—</MudText>
+            }
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new int[]{10, 20, 50}" />
+    </PagerContent>
+</MudTable>
+
+@code {
+    private MudTable<LoanDetail> _table = null!;
+    private int _userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        var claim = state.User.FindFirst("user_id")?.Value;
+        _userId = int.TryParse(claim, out var id) ? id : 0;
+    }
+
+    private async Task<TableData<LoanDetail>> LoadData(TableState state, CancellationToken ct)
+    {
+        if (_userId == 0)
+            return new TableData<LoanDetail> { Items = [], TotalItems = 0 };
+
+        var (items, total) = await LoanRepo.GetByUserIdPagedAsync(_userId, state.Page, state.PageSize);
+        return new TableData<LoanDetail> { Items = items, TotalItems = total };
+    }
+
+    private static Color StatusColor(string status) => status switch
+    {
+        "active"   => Color.Info,
+        "returned" => Color.Success,
+        "overdue"  => Color.Error,
+        _          => Color.Default
+    };
+
+    private static string StatusLabel(string status) => status switch
+    {
+        "active"   => "Attivo",
+        "returned" => "Restituito",
+        "overdue"  => "Scaduto",
+        _          => status
+    };
+}

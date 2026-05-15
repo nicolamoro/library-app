@@ -8,6 +8,9 @@ GO
 USE LibraryDB;
 GO
 
+SET QUOTED_IDENTIFIER ON;
+GO
+
 CREATE TABLE genres (
     genre_id    INT           IDENTITY(1,1) NOT NULL,
     name        NVARCHAR(100) NOT NULL,
@@ -63,8 +66,8 @@ CREATE TABLE book_authors (
     CONSTRAINT FK_book_authors_author FOREIGN KEY (author_id) REFERENCES authors (author_id)
 );
 
-CREATE TABLE customers (
-    customer_id       INT           IDENTITY(1,1) NOT NULL,
+CREATE TABLE users (
+    user_id           INT           IDENTITY(1,1) NOT NULL,
     first_name        NVARCHAR(100) NOT NULL,
     last_name         NVARCHAR(100) NOT NULL,
     birth_date        DATE          NULL,
@@ -72,16 +75,23 @@ CREATE TABLE customers (
     address           NVARCHAR(300) NULL,
     phone             NVARCHAR(20)  NULL,
     email             NVARCHAR(150) NULL,
-    registration_date DATE          NOT NULL CONSTRAINT DF_customers_registration_date DEFAULT CAST(GETDATE() AS DATE),
-    status            NVARCHAR(20)  NOT NULL CONSTRAINT DF_customers_status            DEFAULT 'active',
-    CONSTRAINT PK_customers        PRIMARY KEY (customer_id),
-    CONSTRAINT UQ_customers_taxcode UNIQUE     (tax_code),
-    CONSTRAINT CK_customers_status  CHECK      (status IN ('active', 'suspended'))
+    registration_date DATE          NOT NULL CONSTRAINT DF_users_registration_date DEFAULT CAST(GETDATE() AS DATE),
+    status            NVARCHAR(20)  NOT NULL CONSTRAINT DF_users_status            DEFAULT 'active',
+    username          NVARCHAR(150) NULL,
+    password_hash     NVARCHAR(100) NULL,
+    is_admin          BIT           NOT NULL CONSTRAINT DF_users_is_admin          DEFAULT 0,
+    last_login        DATETIME2     NULL,
+    CONSTRAINT PK_users          PRIMARY KEY (user_id),
+    CONSTRAINT UQ_users_taxcode  UNIQUE      (tax_code),
+    CONSTRAINT CK_users_status   CHECK       (status IN ('active', 'suspended'))
 );
+
+-- username must be unique only among non-NULL values (users may start without one)
+CREATE UNIQUE INDEX UQ_users_username ON users (username) WHERE username IS NOT NULL;
 
 CREATE TABLE loans (
     loan_id         INT          IDENTITY(1,1) NOT NULL,
-    customer_id     INT          NOT NULL,
+    user_id         INT          NOT NULL,
     book_id         INT          NOT NULL,
     loan_date       DATE         NOT NULL CONSTRAINT DF_loans_loan_date       DEFAULT CAST(GETDATE() AS DATE),
     due_date        DATE         NOT NULL,
@@ -91,7 +101,7 @@ CREATE TABLE loans (
     fine_amount     DECIMAL(8,2) NULL,
     fine_paid       BIT          NOT NULL CONSTRAINT DF_loans_fine_paid       DEFAULT 0,
     CONSTRAINT PK_loans             PRIMARY KEY (loan_id),
-    CONSTRAINT FK_loans_customer    FOREIGN KEY (customer_id) REFERENCES customers (customer_id),
+    CONSTRAINT FK_loans_user        FOREIGN KEY (user_id)     REFERENCES users (user_id),
     CONSTRAINT FK_loans_book        FOREIGN KEY (book_id)     REFERENCES books     (book_id),
     CONSTRAINT CK_loans_status      CHECK (status IN ('active', 'returned', 'overdue')),
     CONSTRAINT CK_loans_return_date CHECK (return_date IS NULL OR return_date >= loan_date),

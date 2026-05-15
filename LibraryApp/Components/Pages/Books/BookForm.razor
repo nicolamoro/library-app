@@ -1,5 +1,6 @@
 @page "/books/new"
 @page "/books/{Id:int}"
+@attribute [Authorize(Roles = "admin")]
 @inject BookRepository BookRepo
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar

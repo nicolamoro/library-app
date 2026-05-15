@@ -7,8 +7,8 @@ namespace LibraryApp.Data;
 public class LoanRepository(DapperContext ctx)
 {
     private const string SelectCols = """
-        l.loan_id LoanId, l.customer_id CustomerId,
-        c.first_name + ' ' + c.last_name CustomerName,
+        l.loan_id LoanId, l.user_id UserId,
+        u.first_name + ' ' + u.last_name UserFullName,
         l.book_id BookId, b.title BookTitle,
         l.loan_date LoanDate, l.due_date DueDate, l.return_date ReturnDate,
         l.status Status, l.daily_fine_rate DailyFineRate,
@@ -21,8 +21,8 @@ public class LoanRepository(DapperContext ctx)
         return await conn.QueryAsync<LoanDetail>($"""
             SELECT {SelectCols}
             FROM loans l
-            JOIN customers c ON c.customer_id = l.customer_id
-            JOIN books     b ON b.book_id     = l.book_id
+            JOIN users u ON u.user_id = l.user_id
+            JOIN books b ON b.book_id = l.book_id
             ORDER BY l.loan_date DESC
             """);
     }
@@ -40,14 +40,14 @@ public class LoanRepository(DapperContext ctx)
         var sql = $"""
             SELECT COUNT(*)
             FROM loans l
-            JOIN customers c ON c.customer_id = l.customer_id
-            JOIN books     b ON b.book_id     = l.book_id
+            JOIN users u ON u.user_id = l.user_id
+            JOIN books b ON b.book_id = l.book_id
             WHERE @Filter IS NULL OR l.status = @Filter;
 
             SELECT {SelectCols}
             FROM loans l
-            JOIN customers c ON c.customer_id = l.customer_id
-            JOIN books     b ON b.book_id     = l.book_id
+            JOIN users u ON u.user_id = l.user_id
+            JOIN books b ON b.book_id = l.book_id
             WHERE @Filter IS NULL OR l.status = @Filter
             ORDER BY l.loan_date DESC
             OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
@@ -60,14 +60,42 @@ public class LoanRepository(DapperContext ctx)
         return (items, total);
     }
 
+    public async Task<(IEnumerable<LoanDetail> Items, int Total)> GetByUserIdPagedAsync(
+        int userId, int page, int pageSize)
+    {
+        var offset = page * pageSize;
+        var sql = $"""
+            SELECT COUNT(*)
+            FROM loans l
+            JOIN users u ON u.user_id = l.user_id
+            JOIN books b ON b.book_id = l.book_id
+            WHERE l.user_id = @UserId;
+
+            SELECT {SelectCols}
+            FROM loans l
+            JOIN users u ON u.user_id = l.user_id
+            JOIN books b ON b.book_id = l.book_id
+            WHERE l.user_id = @UserId
+            ORDER BY l.loan_date DESC
+            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+            """;
+
+        using var conn = ctx.CreateConnection();
+        using var multi = await conn.QueryMultipleAsync(sql,
+            new { UserId = userId, Offset = offset, PageSize = pageSize });
+        var total = await multi.ReadFirstAsync<int>();
+        var items = await multi.ReadAsync<LoanDetail>();
+        return (items, total);
+    }
+
     public async Task<IEnumerable<LoanDetail>> GetOverdueAsync()
     {
         using var conn = ctx.CreateConnection();
         return await conn.QueryAsync<LoanDetail>($"""
             SELECT {SelectCols}
             FROM loans l
-            JOIN customers c ON c.customer_id = l.customer_id
-            JOIN books     b ON b.book_id     = l.book_id
+            JOIN users u ON u.user_id = l.user_id
+            JOIN books b ON b.book_id = l.book_id
             WHERE l.status = 'overdue'
                OR (l.status = 'active' AND l.due_date < CAST(GETDATE() AS DATE))
             ORDER BY l.due_date
@@ -82,15 +110,15 @@ public class LoanRepository(DapperContext ctx)
         var sql = $"""
             SELECT COUNT(*)
             FROM loans l
-            JOIN customers c ON c.customer_id = l.customer_id
-            JOIN books     b ON b.book_id     = l.book_id
+            JOIN users u ON u.user_id = l.user_id
+            JOIN books b ON b.book_id = l.book_id
             WHERE l.status = 'overdue'
                OR (l.status = 'active' AND l.due_date < CAST(GETDATE() AS DATE));
 
             SELECT {SelectCols}
             FROM loans l
-            JOIN customers c ON c.customer_id = l.customer_id
-            JOIN books     b ON b.book_id     = l.book_id
+            JOIN users u ON u.user_id = l.user_id
+            JOIN books b ON b.book_id = l.book_id
             WHERE l.status = 'overdue'
                OR (l.status = 'active' AND l.due_date < CAST(GETDATE() AS DATE))
             ORDER BY l.due_date
@@ -110,18 +138,18 @@ public class LoanRepository(DapperContext ctx)
         return await conn.QueryAsync<LoanDetail>($"""
             SELECT {SelectCols}
             FROM loans l
-            JOIN customers c ON c.customer_id = l.customer_id
-            JOIN books     b ON b.book_id     = l.book_id
+            JOIN users u ON u.user_id = l.user_id
+            JOIN books b ON b.book_id = l.book_id
             WHERE l.status IN ('active', 'overdue')
             ORDER BY l.due_date
             """);
     }
 
-    public async Task BorrowAsync(int customerId, int bookId, int loanDays = 30)
+    public async Task BorrowAsync(int userId, int bookId, int loanDays = 30)
     {
         using var conn = ctx.CreateConnection();
         await conn.ExecuteAsync("sp_borrow_book",
-            new { customer_id = customerId, book_id = bookId, loan_days = loanDays },
+            new { user_id = userId, book_id = bookId, loan_days = loanDays },
             commandType: CommandType.StoredProcedure);
     }
 
@@ -134,8 +162,8 @@ public class LoanRepository(DapperContext ctx)
         return await conn.QueryFirstOrDefaultAsync<LoanDetail>($"""
             SELECT {SelectCols}
             FROM loans l
-            JOIN customers c ON c.customer_id = l.customer_id
-            JOIN books     b ON b.book_id     = l.book_id
+            JOIN users u ON u.user_id = l.user_id
+            JOIN books b ON b.book_id = l.book_id
             WHERE l.loan_id = @loanId
             """, new { loanId });
     }

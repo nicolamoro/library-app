@@ -30,7 +30,7 @@ sqlcmd -S localhost -U sa -P "StrongPass123!" -No -d LibraryDB -i db/init/03_see
 
 ### Volume seed (stress test)
 
-`db/seed_volume.sql` inserts ~13,350 additional rows for load testing (14 genres, 50 publishers, 300 authors, 1,000 books, 2,000 customers, 10,000 loans). Run it **after** the base seed, on demand:
+`db/seed_volume.sql` inserts ~13,350 additional rows for load testing (14 genres, 50 publishers, 300 authors, 1,000 books, 2,000 users, 10,000 loans). Run it **after** the base seed, on demand:
 
 ```sh
 # Via Docker (DB container must be running)
@@ -65,32 +65,65 @@ Browser ──WebSocket──► Blazor Server Circuit
 
 | Path | Purpose |
 |---|---|
-| `LibraryApp/Components/Pages/` | Razor pages: Home (dashboard), Books/, Customers/, Loans/ |
-| `LibraryApp/Components/Layout/` | Shell: `MainLayout.razor` (AppBar, Drawer, dark mode), `NavMenu.razor` |
-| `LibraryApp/Data/` | `DapperContext` (connection factory), repositories for Book/Customer/Loan |
-| `LibraryApp/Models/` | POCOs: `Book`, `Author`, `Genre`, `Publisher`, `Customer`, `LoanDetail` |
+| `LibraryApp/Components/Pages/` | Razor pages: Home (dashboard), Books/, Users/, Loans/, MyLoans |
+| `LibraryApp/Components/Layout/` | Shell: `MainLayout.razor` (AppBar, Drawer, dark mode, logout), `NavMenu.razor` |
+| `LibraryApp/Data/` | `DapperContext` (connection factory), repositories for Book/User/Loan |
+| `LibraryApp/Models/` | POCOs: `Book`, `Author`, `Genre`, `Publisher`, `User`, `LoanDetail` |
+| `LibraryApp/Pages/` | Razor Pages: `Login.cshtml`, `Logout.cshtml` (cookie auth) |
 | `db/init/` | SQL scripts: `01_schema.sql` (DDL), `02_procedures.sql` (SPs), `03_seed.sql` |
 
 ### Database
 
 SQL Server 2022. Loan lifecycle is managed by two stored procedures:
-- **`sp_borrow_book`** — validates customer status and book availability, inserts loan, decrements `available_copies`
+- **`sp_borrow_book`** — validates user status and book availability, inserts loan, decrements `available_copies`
 - **`sp_return_book`** — sets `return_date`, computes `fine_amount` if overdue, increments `available_copies`
 
 Direct SQL queries are written inline in repositories using Dapper raw SQL (no ORM). `DateOnly` mapping requires the custom `DateOnlyTypeHandler` registered in `Program.cs`.
 
 ### Pagination
 
-All list pages (Dashboard, Books, Customers, Loans) use **server-side pagination** via MudBlazor's `MudTable ServerData` pattern. Each repository exposes a dedicated paged method alongside the original `GetAllAsync`:
+All list pages (Dashboard, Books, Users, Loans) use **server-side pagination** via MudBlazor's `MudTable ServerData` pattern. Each repository exposes a dedicated paged method alongside the original `GetAllAsync`:
 
 | Repository method | Used by | Filter |
 |---|---|---|
 | `BookRepository.GetPagedAsync(page, pageSize, search?)` | BookList | LIKE on title / genre / authors |
-| `CustomerRepository.GetPagedAsync(page, pageSize, search?)` | CustomerList | LIKE on full name / email |
+| `UserRepository.GetPagedAsync(page, pageSize, search?)` | UserList | LIKE on full name / email |
 | `LoanRepository.GetPagedAsync(page, pageSize, filter)` | LoanList | exact `status` match (`all` = no filter) |
 | `LoanRepository.GetOverduePagedAsync(page, pageSize)` | Home dashboard | `status = 'overdue'` or active past due |
+| `LoanRepository.GetByUserIdPagedAsync(userId, page, pageSize)` | MyLoans | filter by user_id |
 
 Each method runs **two SQL statements in one round-trip** via `QueryMultipleAsync`: a `COUNT(*)` and a `SELECT … OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY`. The UI uses `MudTablePager` with options `[10, 20, 50, 100]` rows per page (default 20). Search fields trigger `ReloadServerData()` with a 300 ms debounce.
+
+### Authentication
+
+Cookie-based authentication (ASP.NET Core `AddCookie`) — **not** ASP.NET Identity.
+
+**Roles:**
+- `admin` — full access: Dashboard, Books, Users CRUD, Loans
+- `user` — can only view their own loans at `/my-loans`
+
+**Login/logout via Razor Pages** (`LibraryApp/Pages/Login.cshtml`, `Logout.cshtml`). Blazor runs on WebSocket so `Set-Cookie` headers must be issued on a plain HTTP response; Razor Pages handle this. All navigation to `/login` and `/logout` from Blazor uses `NavigationManager.NavigateTo(..., forceLoad: true)`.
+
+**`users` table:**
+- `user_id` — PK, used as `NameIdentifier` claim
+- `username` — unique login name (set to email for seeded users)
+- `password_hash` — BCrypt work factor 12 (via BCrypt.Net-Next 4.0.3)
+- `is_admin` — `1` for admins, `0` for users
+- `last_login` — updated on each successful login
+
+**Seed credentials:**
+| Username | Password | Role |
+|---|---|---|
+| `admin` | `admin123` | admin |
+| `mario.rossi@email.it` | `user123` | user |
+| `lucia.bianchi@email.it` | `user123` | user |
+| `f.conti@email.it` | `user123` | user |
+| `giulia.marino@email.it` | `user123` | user |
+| `antonio.deluca@email.it` | `user123` | user (suspended) |
+
+**Claims issued at login:** `NameIdentifier` (user_id), `Name` (username), `Role` (admin/user), `user_id` (used by `MyLoans` to filter loans).
+
+**Authorization in Blazor:** `Routes.razor` wraps everything in `<CascadingAuthenticationState>` and uses `<AuthorizeRouteView>`. Unauthenticated users are redirected to `/login`; authenticated users with wrong role see `/access-denied`. All admin pages carry `@attribute [Authorize(Roles = "admin")]`.
 
 ### Dark mode
 

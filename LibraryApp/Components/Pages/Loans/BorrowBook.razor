@@ -1,14 +1,15 @@
 @page "/loans/borrow"
+@attribute [Authorize(Roles = "admin")]
 @inject LoanRepository LoanRepo
 @inject BookRepository BookRepo
-@inject CustomerRepository CustomerRepo
+@inject UserRepository UserRepo
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 
 <PageTitle>Nuovo Prestito — Library</PageTitle>
 <MudText Typo="Typo.h4" Class="mb-4">Nuovo Prestito</MudText>
 
-@if (_customers is null)
+@if (_users is null)
 {
     <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
 }
@@ -17,10 +18,10 @@ else
     <MudCard Elevation="2" Style="max-width:600px">
         <MudCardContent>
             <MudStack Spacing="4">
-                <MudAutocomplete T="Customer" Label="Cliente" Variant="Variant.Outlined" Required="true"
-                                 @bind-Value="_selectedCustomer"
-                                 SearchFunc="SearchCustomers"
-                                 ToStringFunc="@(c => c?.FullName ?? string.Empty)"
+                <MudAutocomplete T="User" Label="Cliente" Variant="Variant.Outlined" Required="true"
+                                 @bind-Value="_selectedUser"
+                                 SearchFunc="SearchUsers"
+                                 ToStringFunc="@(u => u?.FullName ?? string.Empty)"
                                  MinCharacters="0" MaxItems="50" CoerceText="true" />
 
                 <MudAutocomplete T="Book" Label="Libro" Variant="Variant.Outlined" Required="true"
@@ -46,26 +47,26 @@ else
 }
 
 @code {
-    private IEnumerable<Customer>? _customers;
+    private IEnumerable<User>? _users;
     private IEnumerable<Book> _books = [];
-    private Customer? _selectedCustomer;
+    private User? _selectedUser;
     private Book? _selectedBook;
     private int _loanDays = 30;
     private bool _loading;
 
     protected override async Task OnInitializedAsync()
     {
-        var (customers, books) = (CustomerRepo.GetAllAsync(), BookRepo.GetAllAsync());
-        _customers = await customers;
+        var (users, books) = (UserRepo.GetAllAsync(), BookRepo.GetAllAsync());
+        _users = await users;
         _books = await books;
     }
 
-    private Task<IEnumerable<Customer>> SearchCustomers(string value, CancellationToken _)
+    private Task<IEnumerable<User>> SearchUsers(string value, CancellationToken _)
     {
-        var active = _customers!.Where(c => c.Status == "active");
+        var active = _users!.Where(u => u.Status == "active" && !u.IsAdmin);
         if (string.IsNullOrWhiteSpace(value))
             return Task.FromResult(active);
-        return Task.FromResult(active.Where(c => c.FullName.Contains(value, StringComparison.OrdinalIgnoreCase)));
+        return Task.FromResult(active.Where(u => u.FullName.Contains(value, StringComparison.OrdinalIgnoreCase)));
     }
 
     private Task<IEnumerable<Book>> SearchBooks(string value, CancellationToken _)
@@ -78,7 +79,7 @@ else
 
     private async Task SubmitAsync()
     {
-        if (_selectedCustomer is null || _selectedBook is null)
+        if (_selectedUser is null || _selectedBook is null)
         {
             Snackbar.Add("Seleziona un cliente e un libro.", Severity.Warning);
             return;
@@ -86,7 +87,7 @@ else
         _loading = true;
         try
         {
-            await LoanRepo.BorrowAsync(_selectedCustomer.CustomerId, _selectedBook.BookId, _loanDays);
+            await LoanRepo.BorrowAsync(_selectedUser.UserId, _selectedBook.BookId, _loanDays);
             Snackbar.Add("Prestito registrato con successo.", Severity.Success);
             Nav.NavigateTo("/loans");
         }

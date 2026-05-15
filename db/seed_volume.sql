@@ -21,6 +21,9 @@
 USE LibraryDB;
 GO
 
+SET QUOTED_IDENTIFIER ON;
+GO
+
 -- Guardia: esce subito se il volume seed è già stato applicato
 IF EXISTS (SELECT 1 FROM books WHERE isbn LIKE 'VOL%')
 BEGIN
@@ -167,8 +170,8 @@ GO
 DECLARE @i INT = 1;
 WHILE @i <= 2000
 BEGIN
-    INSERT INTO customers
-        (first_name, last_name, birth_date, tax_code, address, phone, email, registration_date, status)
+    INSERT INTO users
+        (first_name, last_name, birth_date, tax_code, address, phone, email, registration_date, status, username, password_hash)
     VALUES (
         N'Cliente' + CAST(@i AS NVARCHAR(10)),
         N'Rossi'   + CAST(@i AS NVARCHAR(10)),
@@ -178,7 +181,9 @@ BEGIN
         N'3' + RIGHT(N'000000000' + CAST((@i * 7919) % 1000000000 AS NVARCHAR(10)), 9),
         N'utente' + CAST(@i AS NVARCHAR(10)) + N'@testmail.it',
         DATEADD(DAY, -((@i * 3) % 1460), CAST(GETDATE() AS DATE)),
-        CASE WHEN @i % 20 = 0 THEN N'suspended' ELSE N'active' END
+        CASE WHEN @i % 20 = 0 THEN N'suspended' ELSE N'active' END,
+        N'utente' + CAST(@i AS NVARCHAR(10)) + N'@testmail.it',
+        N'$2a$12$vfhLGjT3/IzLIYn6O/w8Wu..bkp3qQj5vAfaXbgp3P90kTWk7gz6a'
     );
     SET @i = @i + 1;
 END
@@ -194,9 +199,9 @@ GO
 --    10 % scaduti     (non restituiti, multa calcolata)
 -- ============================================================
 DECLARE @i         INT;
-DECLARE @custId    INT;
+DECLARE @userId    INT;
 DECLARE @bookId    INT;
-DECLARE @minCust   INT, @maxCust INT, @custRange INT;
+DECLARE @minUser   INT, @maxUser INT, @userRange INT;
 DECLARE @minBook   INT, @maxBook INT, @bookRange INT;
 DECLARE @loanDate  DATE;
 DECLARE @dueDate   DATE;
@@ -206,15 +211,15 @@ DECLARE @fine      DECIMAL(8,2);
 DECLARE @daysOver  INT;
 DECLARE @finePaid  BIT;
 
-SELECT @minCust = MIN(customer_id), @maxCust = MAX(customer_id) FROM customers;
+SELECT @minUser = MIN(user_id), @maxUser = MAX(user_id) FROM users;
 SELECT @minBook = MIN(book_id),     @maxBook = MAX(book_id)     FROM books;
-SET @custRange = @maxCust - @minCust + 1;
+SET @userRange = @maxUser - @minUser + 1;
 SET @bookRange = @maxBook - @minBook + 1;
 
 SET @i = 1;
 WHILE @i <= 10000
 BEGIN
-    SET @custId = @minCust + (@i          % @custRange);
+    SET @userId = @minUser + (@i          % @userRange);
     SET @bookId = @minBook + ((@i * 3)    % @bookRange);
     SET @rate   = CASE (@i % 3) WHEN 0 THEN 0.75 WHEN 1 THEN 0.50 ELSE 1.00 END;
 
@@ -236,9 +241,9 @@ BEGIN
             SET @finePaid = 0;
         END
         INSERT INTO loans
-            (customer_id, book_id, loan_date, due_date, return_date, status, daily_fine_rate, fine_amount, fine_paid)
+            (user_id, book_id, loan_date, due_date, return_date, status, daily_fine_rate, fine_amount, fine_paid)
         VALUES
-            (@custId, @bookId, @loanDate, @dueDate, @retDate, N'returned', @rate, @fine, @finePaid);
+            (@userId, @bookId, @loanDate, @dueDate, @retDate, N'returned', @rate, @fine, @finePaid);
     END
     ELSE IF @i % 10 < 9
     BEGIN
@@ -246,9 +251,9 @@ BEGIN
         SET @loanDate = DATEADD(DAY, -(@i % 25), CAST(GETDATE() AS DATE));
         SET @dueDate  = DATEADD(DAY, 30, @loanDate);
         INSERT INTO loans
-            (customer_id, book_id, loan_date, due_date, return_date, status, daily_fine_rate, fine_amount, fine_paid)
+            (user_id, book_id, loan_date, due_date, return_date, status, daily_fine_rate, fine_amount, fine_paid)
         VALUES
-            (@custId, @bookId, @loanDate, @dueDate, NULL, N'active', @rate, NULL, 0);
+            (@userId, @bookId, @loanDate, @dueDate, NULL, N'active', @rate, NULL, 0);
     END
     ELSE
     BEGIN
@@ -258,9 +263,9 @@ BEGIN
         SET @daysOver = DATEDIFF(DAY, @dueDate, CAST(GETDATE() AS DATE));
         SET @fine     = @daysOver * @rate;
         INSERT INTO loans
-            (customer_id, book_id, loan_date, due_date, return_date, status, daily_fine_rate, fine_amount, fine_paid)
+            (user_id, book_id, loan_date, due_date, return_date, status, daily_fine_rate, fine_amount, fine_paid)
         VALUES
-            (@custId, @bookId, @loanDate, @dueDate, NULL, N'overdue', @rate, @fine, 0);
+            (@userId, @bookId, @loanDate, @dueDate, NULL, N'overdue', @rate, @fine, 0);
     END
 
     SET @i = @i + 1;
@@ -278,6 +283,6 @@ SELECT 'publishers',             COUNT(*)                FROM publishers  UNION 
 SELECT 'authors',                COUNT(*)                FROM authors     UNION ALL
 SELECT 'books',                  COUNT(*)                FROM books       UNION ALL
 SELECT 'book_authors',           COUNT(*)                FROM book_authors UNION ALL
-SELECT 'customers',              COUNT(*)                FROM customers   UNION ALL
+SELECT 'users',                  COUNT(*)                FROM users       UNION ALL
 SELECT 'loans',                  COUNT(*)                FROM loans;
 GO

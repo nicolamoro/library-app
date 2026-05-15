@@ -1,19 +1,20 @@
-@page "/customers"
-@inject CustomerRepository CustomerRepo
+@page "/users"
+@attribute [Authorize(Roles = "admin")]
+@inject UserRepository UserRepo
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 
-<PageTitle>Clienti — Library</PageTitle>
+<PageTitle>Utenti — Library</PageTitle>
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
-    <MudText Typo="Typo.h4" Style="flex:1">Clienti</MudText>
+    <MudText Typo="Typo.h4" Style="flex:1">Utenti</MudText>
     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd"
-               OnClick="@(() => Nav.NavigateTo("/customers/new"))">
-        Nuovo Cliente
+               OnClick="@(() => Nav.NavigateTo("/users/new"))">
+        Nuovo Utente
     </MudButton>
 </MudStack>
 
-<MudTable @ref="_table" T="Customer" ServerData="LoadData" Hover="true" Dense="true" Striped="true" Elevation="2" RowsPerPage="20">
+<MudTable @ref="_table" T="User" ServerData="LoadData" Hover="true" Dense="true" Striped="true" Elevation="2" RowsPerPage="20">
     <ToolBarContent>
         <MudSpacer />
         <MudTextField T="string" Value="_search" ValueChanged="OnSearchChanged"
@@ -23,25 +24,31 @@
     </ToolBarContent>
     <HeaderContent>
         <MudTh>Nome</MudTh>
+        <MudTh>Username</MudTh>
         <MudTh>Email</MudTh>
-        <MudTh>Telefono</MudTh>
-        <MudTh>Iscritto dal</MudTh>
+        <MudTh>Ruolo</MudTh>
         <MudTh>Stato</MudTh>
+        <MudTh>Ultimo Accesso</MudTh>
         <MudTh>Azioni</MudTh>
     </HeaderContent>
     <RowTemplate>
         <MudTd>@context.FullName</MudTd>
+        <MudTd>@(context.Username ?? "—")</MudTd>
         <MudTd>@(context.Email ?? "—")</MudTd>
-        <MudTd>@(context.Phone ?? "—")</MudTd>
-        <MudTd>@context.RegistrationDate.ToString("dd/MM/yyyy")</MudTd>
+        <MudTd>
+            <MudChip T="string" Color="@(context.IsAdmin ? Color.Secondary : Color.Info)" Size="Size.Small">
+                @(context.IsAdmin ? "Admin" : "Cliente")
+            </MudChip>
+        </MudTd>
         <MudTd>
             <MudChip T="string" Color="@(context.Status == "active" ? Color.Success : Color.Warning)" Size="Size.Small">
                 @(context.Status == "active" ? "Attivo" : "Sospeso")
             </MudChip>
         </MudTd>
+        <MudTd>@(context.LastLogin.HasValue ? context.LastLogin.Value.ToString("dd/MM/yyyy HH:mm") : "—")</MudTd>
         <MudTd>
             <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
-                           OnClick="@(() => Nav.NavigateTo($"/customers/{context.CustomerId}"))" />
+                           OnClick="@(() => Nav.NavigateTo($"/users/edit/{context.UserId}"))" />
             <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
                            OnClick="@(() => DeleteAsync(context))" />
         </MudTd>
@@ -52,13 +59,13 @@
 </MudTable>
 
 @code {
-    private MudTable<Customer> _table = null!;
+    private MudTable<User> _table = null!;
     private string _search = string.Empty;
 
-    private async Task<TableData<Customer>> LoadData(TableState state, CancellationToken ct)
+    private async Task<TableData<User>> LoadData(TableState state, CancellationToken ct)
     {
-        var (items, total) = await CustomerRepo.GetPagedAsync(state.Page, state.PageSize, _search);
-        return new TableData<Customer> { Items = items, TotalItems = total };
+        var (items, total) = await UserRepo.GetPagedAsync(state.Page, state.PageSize, _search);
+        return new TableData<User> { Items = items, TotalItems = total };
     }
 
     private async Task OnSearchChanged(string value)
@@ -67,10 +74,10 @@
         await _table.ReloadServerData();
     }
 
-    private async Task DeleteAsync(Customer customer)
+    private async Task DeleteAsync(User user)
     {
-        await CustomerRepo.DeleteAsync(customer.CustomerId);
+        await UserRepo.DeleteAsync(user.UserId);
         await _table.ReloadServerData();
-        Snackbar.Add($"{customer.FullName} eliminato.", Severity.Success);
+        Snackbar.Add($"{user.FullName} eliminato.", Severity.Success);
     }
 }

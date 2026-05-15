@@ -1,4 +1,5 @@
 @page "/loans"
+@attribute [Authorize(Roles = "admin")]
 @inject LoanRepository LoanRepo
 @inject NavigationManager Nav
 
@@ -36,7 +37,7 @@
     </HeaderContent>
     <RowTemplate>
         <MudTd>@context.LoanId</MudTd>
-        <MudTd>@context.CustomerName</MudTd>
+        <MudTd>@context.UserFullName</MudTd>
         <MudTd>@context.BookTitle</MudTd>
         <MudTd>@context.LoanDate.ToString("dd/MM/yyyy")</MudTd>
         <MudTd>@context.DueDate.ToString("dd/MM/yyyy")</MudTd>

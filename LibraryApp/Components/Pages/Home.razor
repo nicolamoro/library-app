@@ -1,4 +1,5 @@
 @page "/"
+@attribute [Authorize(Roles = "admin")]
 @inject LoanRepository LoanRepo
 
 <PageTitle>Dashboard — Library</PageTitle>
@@ -28,7 +29,7 @@ else if (_totalOverdue > 0)
     </HeaderContent>
     <RowTemplate>
         <MudTd>@context.LoanId</MudTd>
-        <MudTd>@context.CustomerName</MudTd>
+        <MudTd>@context.UserFullName</MudTd>
         <MudTd>@context.BookTitle</MudTd>
         <MudTd><MudChip T="string" Color="Color.Error" Size="Size.Small">@context.DueDate.ToString("dd/MM/yyyy")</MudChip></MudTd>
         <MudTd>@context.DaysOverdue gg</MudTd>

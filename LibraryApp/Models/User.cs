@@ -1,8 +1,8 @@
 namespace LibraryApp.Models;
 
-public class Customer
+public class User
 {
-    public int CustomerId { get; set; }
+    public int UserId { get; set; }
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public DateOnly? BirthDate { get; set; }
@@ -12,5 +12,10 @@ public class Customer
     public string? Email { get; set; }
     public DateOnly RegistrationDate { get; set; }
     public string Status { get; set; } = "active";
+    public string? Username { get; set; }
+    public string? PasswordHash { get; set; }
+    public bool IsAdmin { get; set; }
+    public DateTime? LastLogin { get; set; }
+
     public string FullName => $"{FirstName} {LastName}";
 }
