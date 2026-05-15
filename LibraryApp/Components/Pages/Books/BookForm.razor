@@ -43,7 +43,8 @@ else
                 </MudItem>
                 <MudItem xs="12">
                     <MudSelect T="int" MultiSelection="true" @bind-SelectedValues="_selectedAuthorIds"
-                               Label="Autori" Variant="Variant.Outlined">
+                               Label="Autori" Variant="Variant.Outlined"
+                               ToStringFunc="@(id => _authors.FirstOrDefault(a => a.AuthorId == id)?.FullName ?? id.ToString())">
                         @foreach (var a in _authors)
                         {
                             <MudSelectItem T="int" Value="@a.AuthorId">@a.FullName</MudSelectItem>

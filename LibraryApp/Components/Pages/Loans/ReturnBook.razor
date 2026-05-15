@@ -18,15 +18,12 @@ else
 {
     <MudCard Elevation="2" Style="max-width:600px">
         <MudCardContent>
-            <MudSelect T="int?" Value="_loanId" ValueChanged="OnLoanSelected" Label="Seleziona prestito" Variant="Variant.Outlined">
-                <MudSelectItem T="int?" Value="null">— Seleziona —</MudSelectItem>
-                @foreach (var l in _activeLoans)
-                {
-                    <MudSelectItem T="int?" Value="@l.LoanId">
-                        #@l.LoanId — @l.CustomerName — @l.BookTitle (scade @l.DueDate.ToString("dd/MM/yyyy"))
-                    </MudSelectItem>
-                }
-            </MudSelect>
+            <MudAutocomplete T="LoanDetail" Label="Seleziona prestito" Variant="Variant.Outlined"
+                             Value="_selected"
+                             ValueChanged="OnLoanSelected"
+                             SearchFunc="SearchLoans"
+                             ToStringFunc="@(l => l == null ? string.Empty : $"#{l.LoanId} — {l.CustomerName} — {l.BookTitle} (scade {l.DueDate:dd/MM/yyyy})")"
+                             MinCharacters="0" MaxItems="50" CoerceText="true" />
 
             @if (_selected is not null)
             {
@@ -73,13 +70,24 @@ else
     protected override async Task OnInitializedAsync()
     {
         _activeLoans = await LoanRepo.GetActiveAsync();
-        if (LoanId.HasValue) OnLoanSelected(LoanId.Value);
+        if (LoanId.HasValue) OnLoanSelected(_activeLoans?.FirstOrDefault(l => l.LoanId == LoanId.Value));
     }
 
-    private void OnLoanSelected(int? id)
+    private Task<IEnumerable<LoanDetail>> SearchLoans(string value, CancellationToken _)
     {
-        _loanId = id;
-        _selected = id.HasValue ? _activeLoans?.FirstOrDefault(l => l.LoanId == id) : null;
+        var loans = _activeLoans ?? [];
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult(loans);
+        return Task.FromResult(loans.Where(l =>
+            l.CustomerName.Contains(value, StringComparison.OrdinalIgnoreCase) ||
+            l.BookTitle.Contains(value, StringComparison.OrdinalIgnoreCase) ||
+            l.LoanId.ToString().Contains(value)));
+    }
+
+    private void OnLoanSelected(LoanDetail? loan)
+    {
+        _selected = loan;
+        _loanId = loan?.LoanId;
     }
 
     private async Task SubmitAsync()

@@ -17,23 +17,17 @@ else
     <MudCard Elevation="2" Style="max-width:600px">
         <MudCardContent>
             <MudStack Spacing="4">
-                <MudSelect T="int?" @bind-Value="_customerId" Label="Cliente" Variant="Variant.Outlined" Required="true">
-                    <MudSelectItem T="int?" Value="null">— Seleziona cliente —</MudSelectItem>
-                    @foreach (var c in _customers.Where(c => c.Status == "active"))
-                    {
-                        <MudSelectItem T="int?" Value="@c.CustomerId">@c.FullName</MudSelectItem>
-                    }
-                </MudSelect>
+                <MudAutocomplete T="Customer" Label="Cliente" Variant="Variant.Outlined" Required="true"
+                                 @bind-Value="_selectedCustomer"
+                                 SearchFunc="SearchCustomers"
+                                 ToStringFunc="@(c => c?.FullName ?? string.Empty)"
+                                 MinCharacters="0" MaxItems="50" CoerceText="true" />
 
-                <MudSelect T="int?" @bind-Value="_bookId" Label="Libro" Variant="Variant.Outlined" Required="true">
-                    <MudSelectItem T="int?" Value="null">— Seleziona libro —</MudSelectItem>
-                    @foreach (var b in _books.Where(b => b.AvailableCopies > 0))
-                    {
-                        <MudSelectItem T="int?" Value="@b.BookId">
-                            @b.Title (@b.AvailableCopies copie disponibili)
-                        </MudSelectItem>
-                    }
-                </MudSelect>
+                <MudAutocomplete T="Book" Label="Libro" Variant="Variant.Outlined" Required="true"
+                                 @bind-Value="_selectedBook"
+                                 SearchFunc="SearchBooks"
+                                 ToStringFunc="@(b => b == null ? string.Empty : $"{b.Title} ({b.AvailableCopies} copie disponibili)")"
+                                 MinCharacters="0" MaxItems="50" CoerceText="true" />
 
                 <MudNumericField T="int" @bind-Value="_loanDays" Label="Durata prestito (giorni)"
                                  Variant="Variant.Outlined" Min="1" Max="180" />
@@ -54,8 +48,8 @@ else
 @code {
     private IEnumerable<Customer>? _customers;
     private IEnumerable<Book> _books = [];
-    private int? _customerId;
-    private int? _bookId;
+    private Customer? _selectedCustomer;
+    private Book? _selectedBook;
     private int _loanDays = 30;
     private bool _loading;
 
@@ -66,9 +60,25 @@ else
         _books = await books;
     }
 
+    private Task<IEnumerable<Customer>> SearchCustomers(string value, CancellationToken _)
+    {
+        var active = _customers!.Where(c => c.Status == "active");
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult(active);
+        return Task.FromResult(active.Where(c => c.FullName.Contains(value, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private Task<IEnumerable<Book>> SearchBooks(string value, CancellationToken _)
+    {
+        var available = _books.Where(b => b.AvailableCopies > 0);
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult(available);
+        return Task.FromResult(available.Where(b => b.Title.Contains(value, StringComparison.OrdinalIgnoreCase)));
+    }
+
     private async Task SubmitAsync()
     {
-        if (_customerId is null || _bookId is null)
+        if (_selectedCustomer is null || _selectedBook is null)
         {
             Snackbar.Add("Seleziona un cliente e un libro.", Severity.Warning);
             return;
@@ -76,7 +86,7 @@ else
         _loading = true;
         try
         {
-            await LoanRepo.BorrowAsync(_customerId.Value, _bookId.Value, _loanDays);
+            await LoanRepo.BorrowAsync(_selectedCustomer.CustomerId, _selectedBook.BookId, _loanDays);
             Snackbar.Add("Prestito registrato con successo.", Severity.Success);
             Nav.NavigateTo("/loans");
         }
