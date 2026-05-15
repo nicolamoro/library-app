@@ -43,3 +43,4 @@ Thumbs.db
 appsettings.Local.json
 appsettings.*.local.json
 secrets.json
+.tool-versions
