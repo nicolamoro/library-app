@@ -66,7 +66,7 @@ Usa **Azure Data Studio** o **DBeaver** con questi parametri mentre lo stack è 
 | Container | Immagine base | Porta esposta |
 |---|---|---|
 | `library-app-db-1` | SQL Server 2022 | 1433 |
-| `library-app-app-1` | .NET 8 ASP.NET Core | 8080 |
+| `library-app-app-1` | .NET 10 ASP.NET Core | 8080 |
 
 ## Healthcheck
 

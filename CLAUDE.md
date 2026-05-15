@@ -107,7 +107,7 @@ Managed entirely client-side: `MudThemeProvider` with `@bind-IsDarkMode`; prefer
 
 ## Stack
 
-- .NET 8 / Blazor Server with Interactive Server render mode
+- .NET 10 / Blazor Server with Interactive Server render mode
 - MudBlazor 9.4.0 (component library)
 - Dapper 2.1 (micro-ORM)
 - SQL Server 2022

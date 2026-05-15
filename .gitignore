@@ -16,6 +16,7 @@ obj/
 # Rider / JetBrains
 .idea/
 *.sln.iml
+*.lscache
 
 # NuGet
 *.nupkg

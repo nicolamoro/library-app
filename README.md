@@ -6,8 +6,8 @@ Applicazione web per la gestione di una biblioteca: catalogo libri, anagrafica c
 
 | Layer | Tecnologia |
 |---|---|
-| Frontend | Blazor Server (.NET 8), MudBlazor 9.4.0 |
-| Backend | ASP.NET Core 8, Dapper 2.1 |
+| Frontend | Blazor Server (.NET 10), MudBlazor 9.4.0 |
+| Backend | ASP.NET Core 10, Dapper 2.1 |
 | Database | SQL Server 2022 |
 | Deploy | Docker Compose |
 
