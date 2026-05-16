@@ -29,9 +29,22 @@ public class BookRepository(DapperContext ctx)
         return await conn.QueryAsync<Book>(sql);
     }
 
-    public async Task<(IEnumerable<Book> Items, int Total)> GetPagedAsync(int page, int pageSize, string? search)
+    private static readonly Dictionary<string, string> _bookSortMap = new()
+    {
+        ["title"]     = "Title",
+        ["publisher"] = "PublisherName",
+        ["genre"]     = "GenreName",
+        ["year"]      = "PublicationYear",
+        ["copies"]    = "AvailableCopies",
+    };
+
+    public async Task<(IEnumerable<Book> Items, int Total)> GetPagedAsync(
+        int page, int pageSize, string? search, string? sortBy = null, bool sortDescending = false)
     {
         var offset = page * pageSize;
+        var col = _bookSortMap.GetValueOrDefault(sortBy ?? "", "Title");
+        var dir = sortDescending ? "DESC" : "ASC";
+        var orderBy = string.Join(", ", col.Split(',').Select(c => $"{c.Trim()} {dir}"));
         var param = new
         {
             Search = string.IsNullOrWhiteSpace(search) ? null : search,
@@ -69,7 +82,7 @@ public class BookRepository(DapperContext ctx)
         var sql = $"""
             {cte} SELECT COUNT(*) FROM cte {where};
             {cte} SELECT * FROM cte {where}
-            ORDER BY Title
+            ORDER BY {orderBy}
             OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
             """;
 

@@ -23,12 +23,12 @@
                       Class="mt-0" DebounceInterval="300" Immediate="true" />
     </ToolBarContent>
     <HeaderContent>
-        <MudTh>Titolo</MudTh>
+        <MudTh><MudTableSortLabel T="Book" SortLabel="title">Titolo</MudTableSortLabel></MudTh>
         <MudTh>Autori</MudTh>
-        <MudTh>Editore</MudTh>
-        <MudTh>Genere</MudTh>
-        <MudTh>Anno</MudTh>
-        <MudTh>Copie</MudTh>
+        <MudTh><MudTableSortLabel T="Book" SortLabel="publisher">Editore</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="Book" SortLabel="genre">Genere</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="Book" SortLabel="year">Anno</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="Book" SortLabel="copies">Copie</MudTableSortLabel></MudTh>
         <MudTh>Azioni</MudTh>
     </HeaderContent>
     <RowTemplate>
@@ -60,7 +60,8 @@
 
     private async Task<TableData<Book>> LoadData(TableState state, CancellationToken ct)
     {
-        var (items, total) = await BookRepo.GetPagedAsync(state.Page, state.PageSize, _search);
+        var (items, total) = await BookRepo.GetPagedAsync(state.Page, state.PageSize, _search,
+            state.SortLabel, state.SortDirection == SortDirection.Descending);
         return new TableData<Book> { Items = items, TotalItems = total };
     }
 

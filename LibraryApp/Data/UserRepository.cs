@@ -40,9 +40,22 @@ public class UserRepository(DapperContext ctx)
             $"SELECT {SelectCols} FROM users ORDER BY last_name, first_name");
     }
 
-    public async Task<(IEnumerable<User> Items, int Total)> GetPagedAsync(int page, int pageSize, string? search)
+    private static readonly Dictionary<string, string> _userSortMap = new()
+    {
+        ["name"]      = "last_name, first_name",
+        ["email"]     = "email",
+        ["role"]      = "is_admin",
+        ["status"]    = "status",
+        ["lastlogin"] = "last_login",
+    };
+
+    public async Task<(IEnumerable<User> Items, int Total)> GetPagedAsync(
+        int page, int pageSize, string? search, string? sortBy = null, bool sortDescending = false)
     {
         var offset = page * pageSize;
+        var col = _userSortMap.GetValueOrDefault(sortBy ?? "", "last_name, first_name");
+        var dir = sortDescending ? "DESC" : "ASC";
+        var orderBy = string.Join(", ", col.Split(',').Select(c => $"{c.Trim()} {dir}"));
         var param = new
         {
             Search = string.IsNullOrWhiteSpace(search) ? null : search,
@@ -60,7 +73,7 @@ public class UserRepository(DapperContext ctx)
         var sql = $"""
             SELECT COUNT(*) FROM users {where};
             SELECT {SelectCols} FROM users {where}
-            ORDER BY last_name, first_name
+            ORDER BY {orderBy}
             OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
             """;
 

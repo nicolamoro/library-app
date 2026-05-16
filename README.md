@@ -14,9 +14,10 @@ Applicazione web per la gestione di una biblioteca: catalogo libri, anagrafica u
 ## Funzionalità
 
 - **Dashboard** — mostra i prestiti scaduti o in ritardo con multa stimata e collegamento diretto alla restituzione
-- **Catalogo libri** — lista ricercabile con filtro testuale, creazione e modifica libri (autori multipli, editore, genere, anno, lingua, copie)
-- **Anagrafica utenti** — lista con badge di stato (attivo/sospeso), creazione e modifica, sospensione bloccante per nuovi prestiti
-- **Gestione prestiti** — lista filtrabile per stato, nuovo prestito con controllo disponibilità, restituzione con calcolo multa in tempo reale
+- **Catalogo libri** — lista ricercabile con filtro testuale e ordinamento per colonna, creazione e modifica libri (autori multipli, editore, genere, anno, lingua, copie)
+- **Anagrafica utenti** — lista con badge di stato (attivo/sospeso) e ordinamento per colonna, creazione e modifica, sospensione bloccante per nuovi prestiti
+- **Gestione prestiti** — lista filtrabile per stato con ordinamento per colonna, nuovo prestito con controllo disponibilità, restituzione con calcolo multa in tempo reale
+- **I miei prestiti** — storico prestiti dell'utente con ordinamento per colonna
 - **Dark mode** — toggle luna/sole nella barra superiore; la preferenza è persistita in `localStorage`
 
 ## Struttura del progetto

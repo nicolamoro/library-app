@@ -23,11 +23,11 @@
                       DebounceInterval="300" Immediate="true" />
     </ToolBarContent>
     <HeaderContent>
-        <MudTh>Nome</MudTh>
-        <MudTh>Email</MudTh>
-        <MudTh>Ruolo</MudTh>
-        <MudTh>Stato</MudTh>
-        <MudTh>Ultimo Accesso</MudTh>
+        <MudTh><MudTableSortLabel T="User" SortLabel="name">Nome</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="User" SortLabel="email">Email</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="User" SortLabel="role">Ruolo</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="User" SortLabel="status">Stato</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="User" SortLabel="lastlogin">Ultimo Accesso</MudTableSortLabel></MudTh>
         <MudTh>Azioni</MudTh>
     </HeaderContent>
     <RowTemplate>
@@ -62,7 +62,8 @@
 
     private async Task<TableData<User>> LoadData(TableState state, CancellationToken ct)
     {
-        var (items, total) = await UserRepo.GetPagedAsync(state.Page, state.PageSize, _search);
+        var (items, total) = await UserRepo.GetPagedAsync(state.Page, state.PageSize, _search,
+            state.SortLabel, state.SortDirection == SortDirection.Descending);
         return new TableData<User> { Items = items, TotalItems = total };
     }
 

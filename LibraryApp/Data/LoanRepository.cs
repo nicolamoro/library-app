@@ -27,9 +27,25 @@ public class LoanRepository(DapperContext ctx)
             """);
     }
 
-    public async Task<(IEnumerable<LoanDetail> Items, int Total)> GetPagedAsync(int page, int pageSize, string filter)
+    private static readonly Dictionary<string, string> _loanSortMap = new()
+    {
+        ["id"]         = "l.loan_id",
+        ["user"]       = "u.last_name, u.first_name",
+        ["book"]       = "b.title",
+        ["loandate"]   = "l.loan_date",
+        ["duedate"]    = "l.due_date",
+        ["returndate"] = "l.return_date",
+        ["status"]     = "l.status",
+        ["fine"]       = "l.fine_amount",
+    };
+
+    public async Task<(IEnumerable<LoanDetail> Items, int Total)> GetPagedAsync(
+        int page, int pageSize, string filter, string? sortBy = null, bool sortDescending = false)
     {
         var offset = page * pageSize;
+        var col = _loanSortMap.GetValueOrDefault(sortBy ?? "", "l.loan_date");
+        var dir = sortDescending ? "DESC" : "ASC";
+        var orderBy = string.Join(", ", col.Split(',').Select(c => $"{c.Trim()} {dir}"));
         var param = new
         {
             Filter = filter == "all" ? null : filter,
@@ -49,7 +65,7 @@ public class LoanRepository(DapperContext ctx)
             JOIN users u ON u.user_id = l.user_id
             JOIN books b ON b.book_id = l.book_id
             WHERE @Filter IS NULL OR l.status = @Filter
-            ORDER BY l.loan_date DESC
+            ORDER BY {orderBy}
             OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
             """;
 
@@ -61,9 +77,12 @@ public class LoanRepository(DapperContext ctx)
     }
 
     public async Task<(IEnumerable<LoanDetail> Items, int Total)> GetByUserIdPagedAsync(
-        int userId, int page, int pageSize)
+        int userId, int page, int pageSize, string? sortBy = null, bool sortDescending = false)
     {
         var offset = page * pageSize;
+        var col = _loanSortMap.GetValueOrDefault(sortBy ?? "", "l.loan_date");
+        var dir = sortDescending ? "DESC" : "ASC";
+        var orderBy = string.Join(", ", col.Split(',').Select(c => $"{c.Trim()} {dir}"));
         var sql = $"""
             SELECT COUNT(*)
             FROM loans l
@@ -76,7 +95,7 @@ public class LoanRepository(DapperContext ctx)
             JOIN users u ON u.user_id = l.user_id
             JOIN books b ON b.book_id = l.book_id
             WHERE l.user_id = @UserId
-            ORDER BY l.loan_date DESC
+            ORDER BY {orderBy}
             OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
             """;
 
@@ -102,9 +121,22 @@ public class LoanRepository(DapperContext ctx)
             """);
     }
 
-    public async Task<(IEnumerable<LoanDetail> Items, int Total)> GetOverduePagedAsync(int page, int pageSize)
+    private static readonly Dictionary<string, string> _overdueSortMap = new()
+    {
+        ["id"]      = "l.loan_id",
+        ["user"]    = "u.last_name, u.first_name",
+        ["book"]    = "b.title",
+        ["duedate"] = "l.due_date",
+        ["fine"]    = "l.fine_amount",
+    };
+
+    public async Task<(IEnumerable<LoanDetail> Items, int Total)> GetOverduePagedAsync(
+        int page, int pageSize, string? sortBy = null, bool sortDescending = false)
     {
         var offset = page * pageSize;
+        var col = _overdueSortMap.GetValueOrDefault(sortBy ?? "", "l.due_date");
+        var dir = sortDescending ? "DESC" : "ASC";
+        var orderBy = string.Join(", ", col.Split(',').Select(c => $"{c.Trim()} {dir}"));
         var param = new { Offset = offset, PageSize = pageSize };
 
         var sql = $"""
@@ -121,7 +153,7 @@ public class LoanRepository(DapperContext ctx)
             JOIN books b ON b.book_id = l.book_id
             WHERE l.status = 'overdue'
                OR (l.status = 'active' AND l.due_date < CAST(GETDATE() AS DATE))
-            ORDER BY l.due_date
+            ORDER BY {orderBy}
             OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
             """;
 

@@ -26,14 +26,14 @@
 
 <MudTable @ref="_table" T="LoanDetail" ServerData="LoadData" Hover="true" Dense="true" Striped="true" Elevation="2" RowsPerPage="20">
     <HeaderContent>
-        <MudTh>ID</MudTh>
-        <MudTh>Cliente</MudTh>
-        <MudTh>Libro</MudTh>
-        <MudTh>Prestito</MudTh>
-        <MudTh>Scadenza</MudTh>
-        <MudTh>Restituzione</MudTh>
-        <MudTh>Stato</MudTh>
-        <MudTh>Multa</MudTh>
+        <MudTh><MudTableSortLabel T="LoanDetail" SortLabel="id">ID</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="LoanDetail" SortLabel="user">Cliente</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="LoanDetail" SortLabel="book">Libro</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="LoanDetail" SortLabel="loandate">Prestito</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="LoanDetail" SortLabel="duedate">Scadenza</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="LoanDetail" SortLabel="returndate">Restituzione</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="LoanDetail" SortLabel="status">Stato</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="LoanDetail" SortLabel="fine">Multa</MudTableSortLabel></MudTh>
     </HeaderContent>
     <RowTemplate>
         <MudTd>@context.LoanId</MudTd>
@@ -69,7 +69,8 @@
 
     private async Task<TableData<LoanDetail>> LoadData(TableState state, CancellationToken ct)
     {
-        var (items, total) = await LoanRepo.GetPagedAsync(state.Page, state.PageSize, _filter);
+        var (items, total) = await LoanRepo.GetPagedAsync(state.Page, state.PageSize, _filter,
+            state.SortLabel, state.SortDirection == SortDirection.Descending);
         return new TableData<LoanDetail> { Items = items, TotalItems = total };
     }
 

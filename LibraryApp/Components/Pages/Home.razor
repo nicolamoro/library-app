@@ -19,12 +19,12 @@ else if (_totalOverdue > 0)
 <MudTable T="LoanDetail" ServerData="LoadData" Hover="true" Dense="true" Striped="true" Elevation="2" RowsPerPage="20"
           Class="@(_totalOverdue == 0 ? "d-none" : "")">
     <HeaderContent>
-        <MudTh>ID</MudTh>
-        <MudTh>Cliente</MudTh>
-        <MudTh>Libro</MudTh>
-        <MudTh>Scadenza</MudTh>
+        <MudTh><MudTableSortLabel T="LoanDetail" SortLabel="id">ID</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="LoanDetail" SortLabel="user">Cliente</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="LoanDetail" SortLabel="book">Libro</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="LoanDetail" SortLabel="duedate">Scadenza</MudTableSortLabel></MudTh>
         <MudTh>Giorni ritardo</MudTh>
-        <MudTh>Multa stimata</MudTh>
+        <MudTh><MudTableSortLabel T="LoanDetail" SortLabel="fine">Multa stimata</MudTableSortLabel></MudTh>
         <MudTh>Azioni</MudTh>
     </HeaderContent>
     <RowTemplate>
@@ -51,7 +51,8 @@ else if (_totalOverdue > 0)
 
     private async Task<TableData<LoanDetail>> LoadData(TableState state, CancellationToken ct)
     {
-        var (items, total) = await LoanRepo.GetOverduePagedAsync(state.Page, state.PageSize);
+        var (items, total) = await LoanRepo.GetOverduePagedAsync(state.Page, state.PageSize,
+            state.SortLabel, state.SortDirection == SortDirection.Descending);
         _totalOverdue = total;
         StateHasChanged();
         return new TableData<LoanDetail> { Items = items, TotalItems = total };

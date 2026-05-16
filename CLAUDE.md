@@ -80,19 +80,21 @@ SQL Server 2022. Loan lifecycle is managed by two stored procedures:
 
 Direct SQL queries are written inline in repositories using Dapper raw SQL (no ORM). `DateOnly` mapping requires the custom `DateOnlyTypeHandler` registered in `Program.cs`.
 
-### Pagination
+### Pagination and sorting
 
-All list pages (Dashboard, Books, Users, Loans) use **server-side pagination** via MudBlazor's `MudTable ServerData` pattern. Each repository exposes a dedicated paged method alongside the original `GetAllAsync`:
+All list pages (Dashboard, Books, Users, Loans, MyLoans) use **server-side pagination and sorting** via MudBlazor's `MudTable ServerData` pattern. Each repository exposes a dedicated paged method alongside the original `GetAllAsync`:
 
 | Repository method | Used by | Filter |
 |---|---|---|
-| `BookRepository.GetPagedAsync(page, pageSize, search?)` | BookList | LIKE on title / genre / authors |
-| `UserRepository.GetPagedAsync(page, pageSize, search?)` | UserList | LIKE on full name / email |
-| `LoanRepository.GetPagedAsync(page, pageSize, filter)` | LoanList | exact `status` match (`all` = no filter) |
-| `LoanRepository.GetOverduePagedAsync(page, pageSize)` | Home dashboard | `status = 'overdue'` or active past due |
-| `LoanRepository.GetByUserIdPagedAsync(userId, page, pageSize)` | MyLoans | filter by user_id |
+| `BookRepository.GetPagedAsync(page, pageSize, search?, sortBy?, sortDescending)` | BookList | LIKE on title / genre / authors |
+| `UserRepository.GetPagedAsync(page, pageSize, search?, sortBy?, sortDescending)` | UserList | LIKE on full name / email |
+| `LoanRepository.GetPagedAsync(page, pageSize, filter, sortBy?, sortDescending)` | LoanList | exact `status` match (`all` = no filter) |
+| `LoanRepository.GetOverduePagedAsync(page, pageSize, sortBy?, sortDescending)` | Home dashboard | `status = 'overdue'` or active past due |
+| `LoanRepository.GetByUserIdPagedAsync(userId, page, pageSize, sortBy?, sortDescending)` | MyLoans | filter by user_id |
 
 Each method runs **two SQL statements in one round-trip** via `QueryMultipleAsync`: a `COUNT(*)` and a `SELECT … OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY`. The UI uses `MudTablePager` with options `[10, 20, 50, 100]` rows per page (default 20). Search fields trigger `ReloadServerData()` with a 300 ms debounce.
+
+**Sorting** is implemented via `MudTableSortLabel` on each sortable column header. `TableState.SortLabel` and `TableState.SortDirection` are passed to the repository. Each repository validates the label against an internal whitelist dictionary (`_sortMap`) before interpolating into `ORDER BY`, preventing SQL injection. The `Autori` column (computed `STRING_AGG`) and action columns are not sortable.
 
 ### Authentication
 
