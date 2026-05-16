@@ -34,6 +34,7 @@
         <MudTh><MudTableSortLabel T="LoanDetail" SortLabel="returndate">Restituzione</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel T="LoanDetail" SortLabel="status">Stato</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel T="LoanDetail" SortLabel="fine">Multa</MudTableSortLabel></MudTh>
+        <MudTh>Azioni</MudTh>
     </HeaderContent>
     <RowTemplate>
         <MudTd>@context.LoanId</MudTd>
@@ -62,6 +63,15 @@
                 </MudText>
             }
             else { <text>—</text> }
+        </MudTd>
+        <MudTd>
+            @if (context.Status is "active" or "overdue")
+            {
+                <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                           Href="@($"/loans/return?loanId={context.LoanId}")">
+                    Restituisci
+                </MudButton>
+            }
         </MudTd>
     </RowTemplate>
     <PagerContent>
