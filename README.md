@@ -18,6 +18,7 @@ Applicazione web per la gestione di una biblioteca: catalogo libri, anagrafica u
 - **Anagrafica utenti** — lista con badge di stato (attivo/sospeso) e ordinamento per colonna, creazione e modifica, sospensione bloccante per nuovi prestiti
 - **Gestione prestiti** — lista filtrabile per stato con ordinamento per colonna, nuovo prestito con controllo disponibilità, restituzione con calcolo multa in tempo reale
 - **I miei prestiti** — storico prestiti dell'utente con ordinamento per colonna
+- **Autenticazione** — login con email e password (BCrypt), cookie session, due ruoli: `admin` (accesso completo) e `user` (solo "I miei prestiti")
 - **Dark mode** — toggle luna/sole nella barra superiore; la preferenza è persistita in `localStorage`
 
 ## Struttura del progetto
