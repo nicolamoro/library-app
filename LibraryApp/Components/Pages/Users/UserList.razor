@@ -6,6 +6,13 @@
 
 <PageTitle>Utenti — Library</PageTitle>
 
+<MudMessageBox @ref="_mbox" Title="Conferma eliminazione" CancelText="Annulla">
+    <MessageContent>@_confirmMessage</MessageContent>
+    <YesButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete">Elimina</MudButton>
+    </YesButton>
+</MudMessageBox>
+
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudText Typo="Typo.h4" Style="flex:1">Utenti</MudText>
     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd"
@@ -58,7 +65,9 @@
 
 @code {
     private MudTable<User> _table = null!;
+    private MudMessageBox _mbox = null!;
     private string _search = string.Empty;
+    private string _confirmMessage = string.Empty;
 
     private async Task<TableData<User>> LoadData(TableState state, CancellationToken ct)
     {
@@ -75,6 +84,9 @@
 
     private async Task DeleteAsync(User user)
     {
+        _confirmMessage = $"Eliminare {user.FullName}?";
+        var confirmed = await _mbox.ShowAsync();
+        if (confirmed != true) return;
         await UserRepo.DeleteAsync(user.UserId);
         await _table.ReloadServerData();
         Snackbar.Add($"{user.FullName} eliminato.", Severity.Success);

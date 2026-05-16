@@ -67,7 +67,7 @@ Browser ──WebSocket──► Blazor Server Circuit
 |---|---|
 | `LibraryApp/Components/Pages/` | Razor pages: Home (dashboard), Books/, Users/, Loans/, MyLoans |
 | `LibraryApp/Components/Layout/` | Shell: `MainLayout.razor` (AppBar, Drawer, dark mode, logout), `NavMenu.razor` |
-| `LibraryApp/Data/` | `DapperContext` (connection factory), repositories for Book/User/Loan |
+| `LibraryApp/Data/` | `DapperContext` (connection factory), repositories for Book/Author/Genre/Publisher/User/Loan |
 | `LibraryApp/Models/` | POCOs: `Book`, `Author`, `Genre`, `Publisher`, `User`, `LoanDetail` |
 | `LibraryApp/Pages/` | Razor Pages: `Login.cshtml`, `Logout.cshtml` (cookie auth) |
 | `db/init/` | SQL scripts: `01_schema.sql` (DDL), `02_procedures.sql` (SPs), `03_seed.sql` |
@@ -82,11 +82,14 @@ Direct SQL queries are written inline in repositories using Dapper raw SQL (no O
 
 ### Pagination and sorting
 
-All list pages (Dashboard, Books, Users, Loans, MyLoans) use **server-side pagination and sorting** via MudBlazor's `MudTable ServerData` pattern. Each repository exposes a dedicated paged method alongside the original `GetAllAsync`:
+All list pages use **server-side pagination and sorting** via MudBlazor's `MudTable ServerData` pattern. Each repository exposes a dedicated paged method alongside the original `GetAllAsync`:
 
 | Repository method | Used by | Filter |
 |---|---|---|
 | `BookRepository.GetPagedAsync(page, pageSize, search?, sortBy?, sortDescending)` | BookList | LIKE on title / genre / authors |
+| `AuthorRepository.GetPagedAsync(page, pageSize, search?, sortBy?, sortDescending)` | AuthorList | LIKE on first/last name / nationality |
+| `GenreRepository.GetPagedAsync(page, pageSize, search?, sortBy?, sortDescending)` | GenreList | LIKE on name / description |
+| `PublisherRepository.GetPagedAsync(page, pageSize, search?, sortBy?, sortDescending)` | PublisherList | LIKE on name |
 | `UserRepository.GetPagedAsync(page, pageSize, search?, sortBy?, sortDescending)` | UserList | LIKE on full name / email |
 | `LoanRepository.GetPagedAsync(page, pageSize, filter, sortBy?, sortDescending)` | LoanList | exact `status` match (`all` = no filter) |
 | `LoanRepository.GetOverduePagedAsync(page, pageSize, sortBy?, sortDescending)` | Home dashboard | `status = 'overdue'` or active past due |
@@ -101,7 +104,7 @@ Each method runs **two SQL statements in one round-trip** via `QueryMultipleAsyn
 Cookie-based authentication (ASP.NET Core `AddCookie`) — **not** ASP.NET Identity.
 
 **Roles:**
-- `admin` — full access: Dashboard, Books, Users CRUD, Loans
+- `admin` — full access: Dashboard, Books, Authors, Genres, Publishers, Users CRUD, Loans
 - `user` — can only view their own loans at `/my-loans`
 
 **Login/logout via Razor Pages** (`LibraryApp/Pages/Login.cshtml`, `Logout.cshtml`). Blazor runs on WebSocket so `Set-Cookie` headers must be issued on a plain HTTP response; Razor Pages handle this. All navigation to `/login` and `/logout` from Blazor uses `NavigationManager.NavigateTo(..., forceLoad: true)`.

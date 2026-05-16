@@ -1,0 +1,86 @@
+@page "/genres/new"
+@page "/genres/{Id:int}"
+@attribute [Authorize(Roles = "admin")]
+@inject GenreRepository GenreRepo
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>@(_isNew ? "Nuovo Genere" : "Modifica Genere") — Library</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@(_isNew ? "Nuovo Genere" : "Modifica Genere")</MudText>
+
+@if (_genre is null)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudCard Elevation="2">
+        <MudCardContent>
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_genre.Name" Label="Nome" Required="true" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_genre.Description" Label="Descrizione" Variant="Variant.Outlined"
+                                  Lines="3" />
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+        <MudCardActions Class="pa-4">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync"
+                       StartIcon="@Icons.Material.Filled.Save">
+                Salva
+            </MudButton>
+            <MudButton Variant="Variant.Text" Color="Color.Default"
+                       OnClick="@(() => Nav.NavigateTo("/genres"))" Class="ml-2">
+                Annulla
+            </MudButton>
+        </MudCardActions>
+    </MudCard>
+}
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private Genre? _genre;
+    private bool _isNew;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id is null)
+        {
+            _isNew = true;
+            _genre = new Genre();
+        }
+        else
+        {
+            _genre = await GenreRepo.GetByIdAsync(Id.Value);
+            if (_genre is null) { Nav.NavigateTo("/genres"); return; }
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_genre!.Name))
+        {
+            Snackbar.Add("Il nome è obbligatorio.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            if (_isNew)
+                await GenreRepo.CreateAsync(_genre);
+            else
+                await GenreRepo.UpdateAsync(_genre);
+
+            Snackbar.Add("Genere salvato.", Severity.Success);
+            Nav.NavigateTo("/genres");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Errore: {ex.Message}", Severity.Error);
+        }
+    }
+}

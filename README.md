@@ -15,6 +15,9 @@ Applicazione web per la gestione di una biblioteca: catalogo libri, anagrafica u
 
 - **Dashboard** — mostra i prestiti scaduti o in ritardo con multa stimata e collegamento diretto alla restituzione
 - **Catalogo libri** — lista ricercabile con filtro testuale e ordinamento per colonna, creazione e modifica libri (autori multipli, editore, genere, anno, lingua, copie)
+- **Gestione autori** — lista ricercabile per nome e nazionalità, creazione e modifica con biografia e data di nascita; eliminazione bloccata se l'autore è associato a libri
+- **Gestione generi** — lista ricercabile, creazione e modifica; eliminazione bloccata se il genere è associato a libri
+- **Gestione editori** — lista ricercabile, creazione e modifica con recapiti completi; eliminazione bloccata se l'editore è associato a libri
 - **Anagrafica utenti** — lista con badge di stato (attivo/sospeso) e ordinamento per colonna, creazione e modifica, sospensione bloccante per nuovi prestiti
 - **Gestione prestiti** — lista filtrabile per stato con ordinamento per colonna, nuovo prestito con controllo disponibilità, restituzione con calcolo multa in tempo reale
 - **I miei prestiti** — storico prestiti dell'utente con ordinamento per colonna
@@ -45,6 +48,15 @@ LibraryApp/
       Books/
         BookList.razor          — lista e ricerca libri
         BookForm.razor          — form creazione/modifica libro
+      Authors/
+        AuthorList.razor        — lista e ricerca autori
+        AuthorForm.razor        — form creazione/modifica autore
+      Genres/
+        GenreList.razor         — lista e ricerca generi
+        GenreForm.razor         — form creazione/modifica genere
+      Publishers/
+        PublisherList.razor     — lista e ricerca editori
+        PublisherForm.razor     — form creazione/modifica editore
       Users/
         UserList.razor          — lista utenti
         UserForm.razor          — form creazione/modifica utente
@@ -54,7 +66,10 @@ LibraryApp/
         ReturnBook.razor        — restituzione con calcolo multa
   Data/
     DapperContext.cs            — factory connessioni SQL Server
-    BookRepository.cs           — CRUD libri, autori, generi, editori
+    BookRepository.cs           — CRUD libri + lookup autori/generi/editori per dropdown
+    AuthorRepository.cs         — CRUD autori
+    GenreRepository.cs          — CRUD generi
+    PublisherRepository.cs      — CRUD editori
     UserRepository.cs           — CRUD utenti
     LoanRepository.cs           — CRUD prestiti, prestiti scaduti
   Models/

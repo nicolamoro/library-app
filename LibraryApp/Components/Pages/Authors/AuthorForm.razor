@@ -1,0 +1,95 @@
+@page "/authors/new"
+@page "/authors/{Id:int}"
+@attribute [Authorize(Roles = "admin")]
+@inject AuthorRepository AuthorRepo
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>@(_isNew ? "Nuovo Autore" : "Modifica Autore") — Library</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@(_isNew ? "Nuovo Autore" : "Modifica Autore")</MudText>
+
+@if (_author is null)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudCard Elevation="2">
+        <MudCardContent>
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_author.LastName" Label="Cognome" Required="true" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_author.FirstName" Label="Nome" Required="true" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="_birthDateProxy" Label="Data di nascita" Variant="Variant.Outlined"
+                                   DateFormat="dd/MM/yyyy" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_author.Nationality" Label="Nazionalità" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_author.Biography" Label="Biografia" Variant="Variant.Outlined"
+                                  Lines="5" />
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+        <MudCardActions Class="pa-4">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync"
+                       StartIcon="@Icons.Material.Filled.Save">
+                Salva
+            </MudButton>
+            <MudButton Variant="Variant.Text" Color="Color.Default"
+                       OnClick="@(() => Nav.NavigateTo("/authors"))" Class="ml-2">
+                Annulla
+            </MudButton>
+        </MudCardActions>
+    </MudCard>
+}
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private Author? _author;
+    private bool _isNew;
+
+    private DateTime? _birthDateProxy
+    {
+        get => _author?.BirthDate?.ToDateTime(TimeOnly.MinValue);
+        set => _author!.BirthDate = value.HasValue ? DateOnly.FromDateTime(value.Value) : null;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id is null)
+        {
+            _isNew = true;
+            _author = new Author();
+        }
+        else
+        {
+            _author = await AuthorRepo.GetByIdAsync(Id.Value);
+            if (_author is null) { Nav.NavigateTo("/authors"); return; }
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_author!.LastName) || string.IsNullOrWhiteSpace(_author.FirstName))
+        {
+            Snackbar.Add("Nome e cognome sono obbligatori.", Severity.Warning);
+            return;
+        }
+
+        if (_isNew)
+            await AuthorRepo.CreateAsync(_author);
+        else
+            await AuthorRepo.UpdateAsync(_author);
+
+        Snackbar.Add("Autore salvato.", Severity.Success);
+        Nav.NavigateTo("/authors");
+    }
+}

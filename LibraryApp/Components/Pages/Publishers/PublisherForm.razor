@@ -1,0 +1,95 @@
+@page "/publishers/new"
+@page "/publishers/{Id:int}"
+@attribute [Authorize(Roles = "admin")]
+@inject PublisherRepository PublisherRepo
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>@(_isNew ? "Nuovo Editore" : "Modifica Editore") — Library</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@(_isNew ? "Nuovo Editore" : "Modifica Editore")</MudText>
+
+@if (_publisher is null)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudCard Elevation="2">
+        <MudCardContent>
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_publisher.Name" Label="Nome" Required="true" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_publisher.Phone" Label="Telefono" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_publisher.Email" Label="Email" InputType="InputType.Email"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_publisher.Website" Label="Sito web" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_publisher.Address" Label="Indirizzo" Variant="Variant.Outlined" />
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+        <MudCardActions Class="pa-4">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync"
+                       StartIcon="@Icons.Material.Filled.Save">
+                Salva
+            </MudButton>
+            <MudButton Variant="Variant.Text" Color="Color.Default"
+                       OnClick="@(() => Nav.NavigateTo("/publishers"))" Class="ml-2">
+                Annulla
+            </MudButton>
+        </MudCardActions>
+    </MudCard>
+}
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private Publisher? _publisher;
+    private bool _isNew;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id is null)
+        {
+            _isNew = true;
+            _publisher = new Publisher();
+        }
+        else
+        {
+            _publisher = await PublisherRepo.GetByIdAsync(Id.Value);
+            if (_publisher is null) { Nav.NavigateTo("/publishers"); return; }
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_publisher!.Name))
+        {
+            Snackbar.Add("Il nome è obbligatorio.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            if (_isNew)
+                await PublisherRepo.CreateAsync(_publisher);
+            else
+                await PublisherRepo.UpdateAsync(_publisher);
+
+            Snackbar.Add("Editore salvato.", Severity.Success);
+            Nav.NavigateTo("/publishers");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Errore: {ex.Message}", Severity.Error);
+        }
+    }
+}

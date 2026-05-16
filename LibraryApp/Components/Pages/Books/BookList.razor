@@ -6,6 +6,13 @@
 
 <PageTitle>Libri — Library</PageTitle>
 
+<MudMessageBox @ref="_mbox" Title="Conferma eliminazione" CancelText="Annulla">
+    <MessageContent>@_confirmMessage</MessageContent>
+    <YesButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete">Elimina</MudButton>
+    </YesButton>
+</MudMessageBox>
+
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudText Typo="Typo.h4" Style="flex:1">Catalogo Libri</MudText>
     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
@@ -56,7 +63,9 @@
 
 @code {
     private MudTable<Book> _table = null!;
+    private MudMessageBox _mbox = null!;
     private string _search = string.Empty;
+    private string _confirmMessage = string.Empty;
 
     private async Task<TableData<Book>> LoadData(TableState state, CancellationToken ct)
     {
@@ -73,6 +82,9 @@
 
     private async Task DeleteAsync(Book book)
     {
+        _confirmMessage = $"Eliminare «{book.Title}»?";
+        var confirmed = await _mbox.ShowAsync();
+        if (confirmed != true) return;
         await BookRepo.DeleteAsync(book.BookId);
         await _table.ReloadServerData();
         Snackbar.Add($"«{book.Title}» eliminato.", Severity.Success);

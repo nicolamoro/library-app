@@ -17,6 +17,9 @@ builder.Services.AddScoped<DapperContext>();
 builder.Services.AddScoped<BookRepository>();
 builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<LoanRepository>();
+builder.Services.AddScoped<AuthorRepository>();
+builder.Services.AddScoped<GenreRepository>();
+builder.Services.AddScoped<PublisherRepository>();
 
 builder.Services.AddRazorPages();
 

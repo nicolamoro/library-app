@@ -1,0 +1,87 @@
+@page "/genres"
+@attribute [Authorize(Roles = "admin")]
+@inject GenreRepository GenreRepo
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Generi — Library</PageTitle>
+
+<MudMessageBox @ref="_mbox" Title="Conferma eliminazione" CancelText="Annulla">
+    <MessageContent>@_confirmMessage</MessageContent>
+    <YesButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete">Elimina</MudButton>
+    </YesButton>
+</MudMessageBox>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h4" Style="flex:1">Generi</MudText>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+               OnClick="@(() => Nav.NavigateTo("/genres/new"))">
+        Nuovo Genere
+    </MudButton>
+</MudStack>
+
+<MudTable @ref="_table" T="Genre" ServerData="LoadData" Hover="true" Dense="true" Striped="true" Elevation="2" RowsPerPage="20">
+    <ToolBarContent>
+        <MudSpacer />
+        <MudTextField T="string" Value="_search" ValueChanged="OnSearchChanged"
+                      Placeholder="Cerca..." Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium"
+                      Class="mt-0" DebounceInterval="300" Immediate="true" />
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="Genre" SortLabel="name">Nome</MudTableSortLabel></MudTh>
+        <MudTh>Descrizione</MudTh>
+        <MudTh>Azioni</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.Name</MudTd>
+        <MudTd>@(context.Description ?? "—")</MudTd>
+        <MudTd>
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
+                           OnClick="@(() => Nav.NavigateTo($"/genres/{context.GenreId}"))" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                           OnClick="@(() => DeleteAsync(context))" />
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new int[]{10, 20, 50, 100}" />
+    </PagerContent>
+</MudTable>
+
+@code {
+    private MudTable<Genre> _table = null!;
+    private MudMessageBox _mbox = null!;
+    private string _search = string.Empty;
+    private string _confirmMessage = string.Empty;
+
+    private async Task<TableData<Genre>> LoadData(TableState state, CancellationToken ct)
+    {
+        var (items, total) = await GenreRepo.GetPagedAsync(state.Page, state.PageSize, _search,
+            state.SortLabel, state.SortDirection == SortDirection.Descending);
+        return new TableData<Genre> { Items = items, TotalItems = total };
+    }
+
+    private async Task OnSearchChanged(string value)
+    {
+        _search = value;
+        await _table.ReloadServerData();
+    }
+
+    private async Task DeleteAsync(Genre genre)
+    {
+        _confirmMessage = $"Eliminare «{genre.Name}»?";
+        var confirmed = await _mbox.ShowAsync();
+        if (confirmed != true) return;
+        try
+        {
+            await GenreRepo.DeleteAsync(genre.GenreId);
+            await _table.ReloadServerData();
+            Snackbar.Add($"«{genre.Name}» eliminato.", Severity.Success);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+}

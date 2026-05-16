@@ -1,7 +1,7 @@
 - [x] unificare colonna username e email con info duplicate
 - [x] ordinamento colonne
 - [x] logout utente e login admin mi mostra pagina my-loan e non ho permessi
-- [ ] pagine gestione autori, generi, editori
+- [x] pagine gestione autori, generi, editori
 - [x] in readme manca la feature di auth
 - [x] multa in prestiti ha un valore diverso
 - [x] connection string db non hardcoded nell'app
