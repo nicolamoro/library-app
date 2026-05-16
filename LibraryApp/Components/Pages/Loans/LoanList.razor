@@ -55,6 +55,12 @@
                     @(context.FinePaid ? "✓" : "")
                 </MudText>
             }
+            else if (context.DaysOverdue > 0)
+            {
+                <MudText Color="Color.Warning">
+                    ~€ @context.EstimatedFine.ToString("F2")
+                </MudText>
+            }
             else { <text>—</text> }
         </MudTd>
     </RowTemplate>

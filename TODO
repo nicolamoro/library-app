@@ -3,7 +3,7 @@
 - [ ] logout utente e login admin mi mostra pagina my-loan e non ho permessi
 - [ ] pagine gestione autori, generi, editori
 - [ ] in readme manca la feature di auth
-- [ ] multa in prestiti ha un valore diverso
+- [x] multa in prestiti ha un valore diverso
 - [ ] connection string db non hardcoded nell'app
 - [ ] un utente deve poter visualizzare/modificare i propri dati
 - [ ] tasto restituisci per riga nei prestiti
