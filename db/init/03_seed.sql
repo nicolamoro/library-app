@@ -75,17 +75,17 @@ VALUES ('Admin', 'Admin', 'admin@email.it', '$2a$12$jUdgyLqapIXlfh7J0zZKA.04tWFu
 GO
 
 -- loans
--- Prestito 1: Mario Rossi — Il Nome della Rosa — ATTIVO
--- Prestito 2: Lucia Bianchi — 1984 — RESTITUITO
--- Prestito 3: Francesco Conti — Harry Potter — ATTIVO
--- Prestito 4: Mario Rossi — The Shining — SCADUTO (33 giorni, multa 16.50)
--- Prestito 5: Giulia Marino — L'Amica Geniale — RESTITUITO
--- Prestito 6: Lucia Bianchi — La Fattoria degli Animali — RESTITUITO
+-- Prestito 1: Mario Rossi — Il Nome della Rosa — ATTIVO (preso 27 giorni fa, scade tra 3 giorni)
+-- Prestito 2: Lucia Bianchi — 1984 — RESTITUITO (restituito 3 giorni prima della scadenza)
+-- Prestito 3: Francesco Conti — Harry Potter — ATTIVO (preso 16 giorni fa, scade tra 14 giorni)
+-- Prestito 4: Mario Rossi — The Shining — SCADUTO (scaduto 37 giorni fa)
+-- Prestito 5: Giulia Marino — L'Amica Geniale — RESTITUITO (restituito 4 giorni prima della scadenza)
+-- Prestito 6: Lucia Bianchi — La Fattoria degli Animali — RESTITUITO (restituito 2 giorni prima della scadenza)
 INSERT INTO loans (user_id, book_id, loan_date, due_date, return_date, status, daily_fine_rate, fine_amount, fine_paid) VALUES
-    (1, 1, '2026-04-20', '2026-05-20', NULL,         'active',    0.50, NULL,  0),
-    (2, 4, '2026-03-01', '2026-03-31', '2026-03-28', 'returned',  0.50, NULL,  0),
-    (3, 8, '2026-05-01', '2026-05-31', NULL,         'active',    0.50, NULL,  0),
-    (1, 7, '2026-03-10', '2026-04-10', NULL,         'overdue',   0.50, NULL,  0),
-    (4, 3, '2026-02-01', '2026-03-01', '2026-02-25', 'returned',  0.50, NULL,  0),
-    (2, 5, '2026-01-10', '2026-02-10', '2026-02-08', 'returned',  0.50, NULL,  0);
+    (1, 1, DATEADD(DAY,  -27, CAST(GETDATE() AS DATE)), DATEADD(DAY,   3, CAST(GETDATE() AS DATE)), NULL,                                        'active',   0.50, NULL, 0),
+    (2, 4, DATEADD(DAY,  -77, CAST(GETDATE() AS DATE)), DATEADD(DAY, -47, CAST(GETDATE() AS DATE)), DATEADD(DAY, -50, CAST(GETDATE() AS DATE)), 'returned', 0.50, NULL, 0),
+    (3, 8, DATEADD(DAY,  -16, CAST(GETDATE() AS DATE)), DATEADD(DAY,  14, CAST(GETDATE() AS DATE)), NULL,                                        'active',   0.50, NULL, 0),
+    (1, 7, DATEADD(DAY,  -68, CAST(GETDATE() AS DATE)), DATEADD(DAY, -37, CAST(GETDATE() AS DATE)), NULL,                                        'overdue',  0.50, NULL, 0),
+    (4, 3, DATEADD(DAY, -105, CAST(GETDATE() AS DATE)), DATEADD(DAY, -77, CAST(GETDATE() AS DATE)), DATEADD(DAY, -81, CAST(GETDATE() AS DATE)), 'returned', 0.50, NULL, 0),
+    (2, 5, DATEADD(DAY, -127, CAST(GETDATE() AS DATE)), DATEADD(DAY, -96, CAST(GETDATE() AS DATE)), DATEADD(DAY, -98, CAST(GETDATE() AS DATE)), 'returned', 0.50, NULL, 0);
 GO
