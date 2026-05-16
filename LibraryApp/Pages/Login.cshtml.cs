@@ -16,7 +16,7 @@ public class LoginModel(UserRepository userRepo) : PageModel
     public IActionResult OnGet()
     {
         if (User.Identity?.IsAuthenticated == true)
-            return Redirect(GetReturnUrl());
+            return Redirect(User.IsInRole("admin") ? "/" : "/my-loans");
         return Page();
     }
 
@@ -49,14 +49,6 @@ public class LoginModel(UserRepository userRepo) : PageModel
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
         await userRepo.UpdateLastLoginAsync(user.UserId);
 
-        return Redirect(GetReturnUrl());
-    }
-
-    private string GetReturnUrl()
-    {
-        var returnUrl = Request.Query["ReturnUrl"].ToString();
-        if (Url.IsLocalUrl(returnUrl))
-            return returnUrl;
-        return User.IsInRole("admin") ? "/" : "/my-loans";
+        return Redirect(role == "admin" ? "/" : "/my-loans");
     }
 }
