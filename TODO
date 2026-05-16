@@ -4,7 +4,7 @@
 - [ ] pagine gestione autori, generi, editori
 - [x] in readme manca la feature di auth
 - [x] multa in prestiti ha un valore diverso
-- [ ] connection string db non hardcoded nell'app
+- [x] connection string db non hardcoded nell'app
 - [ ] un utente deve poter visualizzare/modificare i propri dati
 - [x] tasto restituisci per riga nei prestiti
 - [x] la pagina my-loans dovrebbe contenere filtri preimpostati sullo stato come pagina prestiti

@@ -133,12 +133,21 @@ Managed entirely client-side: `MudThemeProvider` with `@bind-IsDarkMode`; prefer
 
 ## DB connection string
 
-`ConnectionStrings__LibraryDb` in `docker-compose.yml`. For local non-Docker development, override in `appsettings.Development.json`:
-```json
-"ConnectionStrings": {
-  "LibraryDb": "Server=localhost,1433;Database=LibraryDB;User Id=sa;Password=StrongPass123!;TrustServerCertificate=True;"
-}
+Credentials are stored in `.env` (gitignored). Copy `.env.example` to `.env` and fill in the values before starting the stack:
+
 ```
+DB_SA_PASSWORD=StrongPass123!
+DB_NAME=LibraryDB
+DB_SERVER=db
+```
+
+`docker-compose.yml` reads `.env` automatically and injects the variables into both containers:
+- `db` receives `MSSQL_SA_PASSWORD`
+- `app` receives `ConnectionStrings__LibraryDb` (built from the three vars above)
+
+ASP.NET Core maps `ConnectionStrings__LibraryDb` to `IConfiguration.GetConnectionString("LibraryDb")` automatically — no code changes needed.
+
+For local non-Docker development, `appsettings.Development.json` provides a localhost fallback (already set to `Server=localhost,1433`). Override it by setting the `ConnectionStrings__LibraryDb` environment variable in your shell if needed.
 
 ## Stack
 
