@@ -7,4 +7,4 @@
 - [ ] connection string db non hardcoded nell'app
 - [ ] un utente deve poter visualizzare/modificare i propri dati
 - [x] tasto restituisci per riga nei prestiti
-- [ ] la pagina my-loans dovrebbe contenere filtri preimpostati sullo stato come pagina prestiti
+- [x] la pagina my-loans dovrebbe contenere filtri preimpostati sullo stato come pagina prestiti

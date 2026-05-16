@@ -77,31 +77,39 @@ public class LoanRepository(DapperContext ctx)
     }
 
     public async Task<(IEnumerable<LoanDetail> Items, int Total)> GetByUserIdPagedAsync(
-        int userId, int page, int pageSize, string? sortBy = null, bool sortDescending = false)
+        int userId, int page, int pageSize, string filter = "all", string? sortBy = null, bool sortDescending = false)
     {
         var offset = page * pageSize;
         var col = _loanSortMap.GetValueOrDefault(sortBy ?? "", "l.loan_date");
         var dir = sortDescending ? "DESC" : "ASC";
         var orderBy = string.Join(", ", col.Split(',').Select(c => $"{c.Trim()} {dir}"));
+        var param = new
+        {
+            UserId = userId,
+            Filter = filter == "all" ? null : filter,
+            Offset = offset,
+            PageSize = pageSize
+        };
         var sql = $"""
             SELECT COUNT(*)
             FROM loans l
             JOIN users u ON u.user_id = l.user_id
             JOIN books b ON b.book_id = l.book_id
-            WHERE l.user_id = @UserId;
+            WHERE l.user_id = @UserId
+              AND (@Filter IS NULL OR l.status = @Filter);
 
             SELECT {SelectCols}
             FROM loans l
             JOIN users u ON u.user_id = l.user_id
             JOIN books b ON b.book_id = l.book_id
             WHERE l.user_id = @UserId
+              AND (@Filter IS NULL OR l.status = @Filter)
             ORDER BY {orderBy}
             OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
             """;
 
         using var conn = ctx.CreateConnection();
-        using var multi = await conn.QueryMultipleAsync(sql,
-            new { UserId = userId, Offset = offset, PageSize = pageSize });
+        using var multi = await conn.QueryMultipleAsync(sql, param);
         var total = await multi.ReadFirstAsync<int>();
         var items = await multi.ReadAsync<LoanDetail>();
         return (items, total);

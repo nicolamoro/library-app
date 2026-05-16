@@ -13,16 +13,12 @@
     </MudButton>
 </MudStack>
 
-<MudButtonGroup Variant="Variant.Outlined" Color="Color.Primary" Class="mb-4">
-    <MudButton OnClick="@(() => SetFilter("all"))"
-               Variant="@(_filter == "all" ? Variant.Filled : Variant.Outlined)">Tutti</MudButton>
-    <MudButton OnClick="@(() => SetFilter("active"))"
-               Variant="@(_filter == "active" ? Variant.Filled : Variant.Outlined)">Attivi</MudButton>
-    <MudButton OnClick="@(() => SetFilter("overdue"))"
-               Variant="@(_filter == "overdue" ? Variant.Filled : Variant.Outlined)">Scaduti</MudButton>
-    <MudButton OnClick="@(() => SetFilter("returned"))"
-               Variant="@(_filter == "returned" ? Variant.Filled : Variant.Outlined)">Restituiti</MudButton>
-</MudButtonGroup>
+<MudToggleGroup T="string" Value="_filter" ValueChanged="SetFilter" Color="Color.Primary" Outlined="true" Class="mb-4">
+    <MudToggleItem Value="@("all")">Tutti</MudToggleItem>
+    <MudToggleItem Value="@("active")">Attivi</MudToggleItem>
+    <MudToggleItem Value="@("overdue")">Scaduti</MudToggleItem>
+    <MudToggleItem Value="@("returned")">Restituiti</MudToggleItem>
+</MudToggleGroup>
 
 <MudTable @ref="_table" T="LoanDetail" ServerData="LoadData" Hover="true" Dense="true" Striped="true" Elevation="2" RowsPerPage="20">
     <HeaderContent>
@@ -90,8 +86,9 @@
         return new TableData<LoanDetail> { Items = items, TotalItems = total };
     }
 
-    private async Task SetFilter(string f)
+    private async Task SetFilter(string? f)
     {
+        if (f is null) return;
         _filter = f;
         await _table.ReloadServerData();
     }

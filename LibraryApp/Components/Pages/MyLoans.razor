@@ -8,6 +8,13 @@
 <MudText Typo="Typo.h4" Class="mb-1">I Miei Prestiti</MudText>
 <MudText Typo="Typo.subtitle1" Class="mb-4 mud-text-secondary">Storico completo dei tuoi prestiti</MudText>
 
+<MudToggleGroup T="string" Value="_filter" ValueChanged="SetFilter" Color="Color.Primary" Outlined="true" Class="mb-4">
+    <MudToggleItem Value="@("all")">Tutti</MudToggleItem>
+    <MudToggleItem Value="@("active")">Attivi</MudToggleItem>
+    <MudToggleItem Value="@("overdue")">Scaduti</MudToggleItem>
+    <MudToggleItem Value="@("returned")">Restituiti</MudToggleItem>
+</MudToggleGroup>
+
 <MudTable @ref="_table" T="LoanDetail" ServerData="LoadData" Hover="true" Dense="true" Striped="true" Elevation="2" RowsPerPage="20">
     <HeaderContent>
         <MudTh><MudTableSortLabel T="LoanDetail" SortLabel="book">Libro</MudTableSortLabel></MudTh>
@@ -55,6 +62,7 @@
 @code {
     private MudTable<LoanDetail> _table = null!;
     private int _userId;
+    private string _filter = "all";
 
     protected override async Task OnInitializedAsync()
     {
@@ -69,8 +77,15 @@
             return new TableData<LoanDetail> { Items = [], TotalItems = 0 };
 
         var (items, total) = await LoanRepo.GetByUserIdPagedAsync(_userId, state.Page, state.PageSize,
-            state.SortLabel, state.SortDirection == SortDirection.Descending);
+            _filter, state.SortLabel, state.SortDirection == SortDirection.Descending);
         return new TableData<LoanDetail> { Items = items, TotalItems = total };
+    }
+
+    private async Task SetFilter(string? f)
+    {
+        if (f is null) return;
+        _filter = f;
+        await _table.ReloadServerData();
     }
 
     private static Color StatusColor(string status) => status switch
