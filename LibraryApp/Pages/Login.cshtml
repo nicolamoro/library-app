@@ -27,7 +27,7 @@
         h1 { font-size: 1.4rem; color: #1976d2; margin-bottom: 0.25rem; }
         .subtitle { font-size: 0.875rem; color: #666; margin-bottom: 1.75rem; }
         label { display: block; font-size: 0.8rem; font-weight: 600; color: #444; margin-bottom: 0.3rem; }
-        input[type=text], input[type=password] {
+        input[type=email], input[type=password] {
             width: 100%;
             padding: 0.6rem 0.75rem;
             border: 1px solid #ccc;
@@ -71,8 +71,8 @@
 
         <form method="post">
             @Html.AntiForgeryToken()
-            <label for="username">Username</label>
-            <input type="text" id="username" name="Username" autocomplete="username" required />
+            <label for="email">Email</label>
+            <input type="email" id="email" name="Email" autocomplete="email" required />
 
             <label for="password">Password</label>
             <input type="password" id="password" name="Password" autocomplete="current-password" required />

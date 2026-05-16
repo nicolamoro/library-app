@@ -24,7 +24,6 @@
     </ToolBarContent>
     <HeaderContent>
         <MudTh>Nome</MudTh>
-        <MudTh>Username</MudTh>
         <MudTh>Email</MudTh>
         <MudTh>Ruolo</MudTh>
         <MudTh>Stato</MudTh>
@@ -33,8 +32,7 @@
     </HeaderContent>
     <RowTemplate>
         <MudTd>@context.FullName</MudTd>
-        <MudTd>@(context.Username ?? "—")</MudTd>
-        <MudTd>@(context.Email ?? "—")</MudTd>
+        <MudTd>@context.Email</MudTd>
         <MudTd>
             <MudChip T="string" Color="@(context.IsAdmin ? Color.Secondary : Color.Info)" Size="Size.Small">
                 @(context.IsAdmin ? "Admin" : "Cliente")

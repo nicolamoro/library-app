@@ -106,22 +106,22 @@ Cookie-based authentication (ASP.NET Core `AddCookie`) — **not** ASP.NET Ident
 
 **`users` table:**
 - `user_id` — PK, used as `NameIdentifier` claim
-- `username` — unique login name (set to email for seeded users)
+- `email` — NOT NULL, UNIQUE; used as login identifier; immutable after creation
 - `password_hash` — BCrypt work factor 12 (via BCrypt.Net-Next 4.0.3)
 - `is_admin` — `1` for admins, `0` for users
 - `last_login` — updated on each successful login
 
 **Seed credentials:**
-| Username | Password | Role |
+| Email | Password | Role |
 |---|---|---|
-| `admin` | `admin123` | admin |
+| `admin@email.it` | `admin123` | admin |
 | `mario.rossi@email.it` | `user123` | user |
 | `lucia.bianchi@email.it` | `user123` | user |
 | `f.conti@email.it` | `user123` | user |
 | `giulia.marino@email.it` | `user123` | user |
 | `antonio.deluca@email.it` | `user123` | user (suspended) |
 
-**Claims issued at login:** `NameIdentifier` (user_id), `Name` (username), `Role` (admin/user), `user_id` (used by `MyLoans` to filter loans).
+**Claims issued at login:** `NameIdentifier` (user_id), `Name` (email), `Role` (admin/user), `user_id` (used by `MyLoans` to filter loans).
 
 **Authorization in Blazor:** `Routes.razor` wraps everything in `<CascadingAuthenticationState>` and uses `<AuthorizeRouteView>`. Unauthenticated users are redirected to `/login`; authenticated users with wrong role see `/access-denied`. All admin pages carry `@attribute [Authorize(Roles = "admin")]`.
 

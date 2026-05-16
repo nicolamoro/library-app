@@ -9,10 +9,9 @@ public class User
     public string? TaxCode { get; set; }
     public string? Address { get; set; }
     public string? Phone { get; set; }
-    public string? Email { get; set; }
+    public string Email { get; set; } = string.Empty;
     public DateOnly RegistrationDate { get; set; }
     public string Status { get; set; } = "active";
-    public string? Username { get; set; }
     public string? PasswordHash { get; set; }
     public bool IsAdmin { get; set; }
     public DateTime? LastLogin { get; set; }

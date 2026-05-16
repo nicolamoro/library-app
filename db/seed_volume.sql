@@ -171,7 +171,7 @@ DECLARE @i INT = 1;
 WHILE @i <= 2000
 BEGIN
     INSERT INTO users
-        (first_name, last_name, birth_date, tax_code, address, phone, email, registration_date, status, username, password_hash)
+        (first_name, last_name, birth_date, tax_code, address, phone, email, registration_date, status, password_hash)
     VALUES (
         N'Cliente' + CAST(@i AS NVARCHAR(10)),
         N'Rossi'   + CAST(@i AS NVARCHAR(10)),
@@ -182,7 +182,6 @@ BEGIN
         N'utente' + CAST(@i AS NVARCHAR(10)) + N'@testmail.it',
         DATEADD(DAY, -((@i * 3) % 1460), CAST(GETDATE() AS DATE)),
         CASE WHEN @i % 20 = 0 THEN N'suspended' ELSE N'active' END,
-        N'utente' + CAST(@i AS NVARCHAR(10)) + N'@testmail.it',
         N'$2a$12$vfhLGjT3/IzLIYn6O/w8Wu..bkp3qQj5vAfaXbgp3P90kTWk7gz6a'
     );
     SET @i = @i + 1;

@@ -26,9 +26,6 @@ else
                     <MudTextField @bind-Value="_user.LastName" Label="Cognome" Required="true" Variant="Variant.Outlined" />
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudTextField @bind-Value="_user.Email" Label="Email" InputType="InputType.Email" Variant="Variant.Outlined" />
-                </MudItem>
-                <MudItem xs="12" md="6">
                     <MudTextField @bind-Value="_user.Phone" Label="Telefono" Variant="Variant.Outlined" />
                 </MudItem>
                 <MudItem xs="12" md="6">
@@ -53,7 +50,9 @@ else
             <MudText Typo="Typo.h6" Class="mb-3">Account</MudText>
             <MudGrid>
                 <MudItem xs="12" md="6">
-                    <MudTextField @bind-Value="_user.Username" Label="Username" Required="true" Variant="Variant.Outlined" />
+                    <MudTextField @bind-Value="_user.Email" Label="Email" InputType="InputType.Email"
+                                  Required="true" ReadOnly="@(!_isNew)" Variant="Variant.Outlined"
+                                  HelperText="@(!_isNew ? "Non modificabile dopo la creazione" : "")" />
                 </MudItem>
                 <MudItem xs="12" md="6">
                     <MudTextField @bind-Value="_password"
@@ -115,9 +114,9 @@ else
             Snackbar.Add("Nome e cognome sono obbligatori.", Severity.Warning);
             return;
         }
-        if (string.IsNullOrWhiteSpace(_user.Username))
+        if (string.IsNullOrWhiteSpace(_user.Email))
         {
-            Snackbar.Add("L'username è obbligatorio.", Severity.Warning);
+            Snackbar.Add("L'email è obbligatoria.", Severity.Warning);
             return;
         }
         if (_isNew && string.IsNullOrWhiteSpace(_password))

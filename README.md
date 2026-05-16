@@ -160,10 +160,9 @@ Relazione N:N tra `books` e `authors`.
 | `tax_code` | NVARCHAR(20) | UNIQUE |
 | `address` | NVARCHAR(300) | |
 | `phone` | NVARCHAR(20) | |
-| `email` | NVARCHAR(150) | |
+| `email` | NVARCHAR(150) | NOT NULL, UNIQUE — usato come login |
 | `registration_date` | DATE | NOT NULL, DEFAULT GETDATE() |
 | `status` | NVARCHAR(20) | `active` \| `suspended`, DEFAULT `active` |
-| `username` | NVARCHAR(150) | UNIQUE (filtered, esclusi NULL) |
 | `password_hash` | NVARCHAR(100) | BCrypt work factor 12 |
 | `is_admin` | BIT | NOT NULL, DEFAULT 0 |
 | `last_login` | DATETIME2 | aggiornato ad ogni login |

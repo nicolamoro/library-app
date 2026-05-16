@@ -74,20 +74,17 @@ CREATE TABLE users (
     tax_code          NVARCHAR(20)  NULL,
     address           NVARCHAR(300) NULL,
     phone             NVARCHAR(20)  NULL,
-    email             NVARCHAR(150) NULL,
+    email             NVARCHAR(150) NOT NULL,
     registration_date DATE          NOT NULL CONSTRAINT DF_users_registration_date DEFAULT CAST(GETDATE() AS DATE),
     status            NVARCHAR(20)  NOT NULL CONSTRAINT DF_users_status            DEFAULT 'active',
-    username          NVARCHAR(150) NULL,
     password_hash     NVARCHAR(100) NULL,
     is_admin          BIT           NOT NULL CONSTRAINT DF_users_is_admin          DEFAULT 0,
     last_login        DATETIME2     NULL,
     CONSTRAINT PK_users          PRIMARY KEY (user_id),
+    CONSTRAINT UQ_users_email    UNIQUE      (email),
     CONSTRAINT UQ_users_taxcode  UNIQUE      (tax_code),
     CONSTRAINT CK_users_status   CHECK       (status IN ('active', 'suspended'))
 );
-
--- username must be unique only among non-NULL values (users may start without one)
-CREATE UNIQUE INDEX UQ_users_username ON users (username) WHERE username IS NOT NULL;
 
 CREATE TABLE loans (
     loan_id         INT          IDENTITY(1,1) NOT NULL,

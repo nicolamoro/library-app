@@ -9,18 +9,18 @@ public class UserRepository(DapperContext ctx)
         user_id UserId, first_name FirstName, last_name LastName,
         birth_date BirthDate, tax_code TaxCode, address Address,
         phone Phone, email Email, registration_date RegistrationDate, status Status,
-        username Username, is_admin IsAdmin, last_login LastLogin
+        is_admin IsAdmin, last_login LastLogin
         """;
 
     // --- Auth ---
 
-    public async Task<User?> GetByUsernameAsync(string username)
+    public async Task<User?> GetByEmailAsync(string email)
     {
         using var conn = ctx.CreateConnection();
         return await conn.QueryFirstOrDefaultAsync<User>($"""
             SELECT {SelectCols}, password_hash PasswordHash
-            FROM users WHERE username = @username
-            """, new { username });
+            FROM users WHERE email = @email
+            """, new { email });
     }
 
     public async Task UpdateLastLoginAsync(int userId)
@@ -54,8 +54,7 @@ public class UserRepository(DapperContext ctx)
             WHERE @Search IS NULL
                OR first_name + ' ' + last_name  LIKE '%' + @Search + '%'
                OR last_name  + ' ' + first_name  LIKE '%' + @Search + '%'
-               OR ISNULL(email,'')               LIKE '%' + @Search + '%'
-               OR ISNULL(username,'')            LIKE '%' + @Search + '%'
+               OR email                          LIKE '%' + @Search + '%'
             """;
 
         var sql = $"""
@@ -85,10 +84,10 @@ public class UserRepository(DapperContext ctx)
         const string sql = """
             INSERT INTO users
                 (first_name, last_name, birth_date, tax_code, address, phone, email, status,
-                 username, password_hash, is_admin)
+                 password_hash, is_admin)
             VALUES
                 (@FirstName, @LastName, @BirthDate, @TaxCode, @Address, @Phone, @Email, @Status,
-                 @Username, @Hash, @IsAdmin);
+                 @Hash, @IsAdmin);
             SELECT CAST(SCOPE_IDENTITY() AS INT);
             """;
         using var conn = ctx.CreateConnection();
@@ -96,7 +95,7 @@ public class UserRepository(DapperContext ctx)
             new
             {
                 u.FirstName, u.LastName, u.BirthDate, u.TaxCode, u.Address,
-                u.Phone, u.Email, u.Status, u.Username, Hash = hash, u.IsAdmin
+                u.Phone, u.Email, u.Status, Hash = hash, u.IsAdmin
             });
     }
 
@@ -107,8 +106,7 @@ public class UserRepository(DapperContext ctx)
                 first_name = @FirstName, last_name = @LastName,
                 birth_date = @BirthDate, tax_code  = @TaxCode,
                 address    = @Address,  phone      = @Phone,
-                email      = @Email,    status     = @Status,
-                username   = @Username, is_admin   = @IsAdmin
+                status     = @Status,   is_admin   = @IsAdmin
             WHERE user_id = @UserId
             """;
         using var conn = ctx.CreateConnection();

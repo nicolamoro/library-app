@@ -9,7 +9,7 @@ namespace LibraryApp.Pages;
 
 public class LoginModel(UserRepository userRepo) : PageModel
 {
-    [BindProperty] public string Username { get; set; } = string.Empty;
+    [BindProperty] public string Email { get; set; } = string.Empty;
     [BindProperty] public string Password { get; set; } = string.Empty;
     public string ErrorMessage { get; set; } = string.Empty;
 
@@ -22,7 +22,7 @@ public class LoginModel(UserRepository userRepo) : PageModel
 
     public async Task<IActionResult> OnPostAsync()
     {
-        var user = await userRepo.GetByUsernameAsync(Username);
+        var user = await userRepo.GetByEmailAsync(Email);
 
         if (user is null
             || user.Status != "active"
@@ -38,7 +38,7 @@ public class LoginModel(UserRepository userRepo) : PageModel
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-            new(ClaimTypes.Name,           user.Username!),
+            new(ClaimTypes.Name,           user.Email),
             new(ClaimTypes.Role,           role),
             new("user_id",                 user.UserId.ToString()),
         };
