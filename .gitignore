@@ -10,9 +10,6 @@ obj/
 *.sln.docstates
 *.rsuser
 
-# VS Code
-.vscode/
-
 # Rider / JetBrains
 .idea/
 *.sln.iml

@@ -8,4 +8,5 @@
 - [ ] user must be able to see/update its data
 - [x] return button in every row of the loans table
 - [x] my-loans page should have preset filters on state, like the loans page
-- [ ] UI language change 
+- [ ] UI language change
+- [ ] github workflows
