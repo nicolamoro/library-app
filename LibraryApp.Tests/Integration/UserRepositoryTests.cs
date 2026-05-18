@@ -91,10 +91,10 @@ public class UserRepositoryTests(SqlServerFixture fixture)
             user.UserId,
             firstName: "Test",
             lastName: "Test",
-            birthDate: null,
-            taxCode: null,
-            address: null,
-            phone: null);
+            birthDate: user.BirthDate,
+            taxCode: user.TaxCode,
+            address: user.Address,
+            phone: user.Phone);
 
         var after = await conn.QueryFirstAsync(
             "SELECT status, is_admin, email FROM users WHERE user_id = @id",
