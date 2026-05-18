@@ -12,18 +12,18 @@ GO
 
 -- ------------------------------------------------------------
 -- sp_borrow_book
---   Registra un nuovo prestito per un utente.
+--   Records a new loan for a user.
 --
---   @user_id         : ID dell'utente
---   @book_id         : ID del libro da prendere in prestito
---   @loan_days       : durata del prestito in giorni (default 30)
---   @daily_fine_rate : tariffa giornaliera multa (default 0.50)
+--   @user_id         : user ID
+--   @book_id         : ID of the book to borrow
+--   @loan_days       : loan duration in days (default 30)
+--   @daily_fine_rate : daily fine rate (default 0.50)
 --
---   Errori:
---     50001 – utente non trovato
---     50002 – utente sospeso
---     50003 – libro non trovato
---     50004 – nessuna copia disponibile
+--   Errors:
+--     50001 – user not found
+--     50002 – user suspended
+--     50003 – book not found
+--     50004 – no copies available
 -- ------------------------------------------------------------
 CREATE OR ALTER PROCEDURE sp_borrow_book
     @user_id         INT,
@@ -90,14 +90,14 @@ GO
 
 -- ------------------------------------------------------------
 -- sp_return_book
---   Registra la restituzione di un prestito.
---   Calcola automaticamente la multa se restituito in ritardo.
+--   Records the return of a loan.
+--   Automatically calculates the fine if returned late.
 --
---   @loan_id : ID del prestito da chiudere
+--   @loan_id : ID of the loan to close
 --
---   Errori:
---     50010 – prestito non trovato
---     50011 – prestito già restituito
+--   Errors:
+--     50010 – loan not found
+--     50011 – loan already returned
 -- ------------------------------------------------------------
 CREATE OR ALTER PROCEDURE sp_return_book
     @loan_id INT

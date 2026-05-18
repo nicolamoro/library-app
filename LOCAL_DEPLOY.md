@@ -1,73 +1,73 @@
 # Local Deploy — Docker Compose
 
-Guida per avviare l'intero stack (database + app) con un singolo comando.
+Guide to starting the full stack (database + app) with a single command.
 
-## Prerequisiti
+## Prerequisites
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installato e in esecuzione
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
 
-## Avvio completo
+## Full start
 
-Dalla root del progetto:
+From the project root:
 
 ```sh
 docker compose up --build
 ```
 
-Docker si occupa di tutto:
-1. Costruisce l'immagine SQL Server con gli script di init
-2. Avvia il container `db`, esegue automaticamente `01_schema.sql`, `02_procedures.sql`, `03_seed.sql`
-3. Attende che il database sia pronto (healthcheck)
-4. Costruisce e avvia il container `app` (Blazor Server)
+Docker handles everything:
+1. Builds the SQL Server image with the init scripts
+2. Starts the `db` container, automatically runs `01_schema.sql`, `02_procedures.sql`, `03_seed.sql`
+3. Waits for the database to be ready (healthcheck)
+4. Builds and starts the `app` container (Blazor Server)
 
-L'app è disponibile su **http://localhost:8080**.
+The app is available at **http://localhost:8080**.
 
-Al primo avvio (~2-3 minuti per il download delle immagini). Gli avvii successivi sono molto più rapidi.
+First start takes ~2-3 minutes for image downloads. Subsequent starts are much faster.
 
-> **Nota:** i dati del database persistono in un volume Docker (`sqlserver-data`). Eliminando il volume si riparte da zero con i dati seed.
+> **Note:** database data persists in a Docker volume (`sqlserver-data`). Deleting the volume resets everything back to the seed data.
 
-## Fermare lo stack
+## Stopping the stack
 
 ```sh
-docker compose down        # ferma i container, il volume persiste
-docker compose down -v     # ferma i container e cancella il volume (dati persi)
+docker compose down        # stops containers, volume is preserved
+docker compose down -v     # stops containers and deletes the volume (data lost)
 ```
 
-## Ricostruire dopo modifiche
+## Rebuilding after changes
 
-Se hai modificato solo il codice Blazor (nessuna modifica agli script SQL o al Dockerfile del db):
+If you only changed Blazor code (no changes to SQL scripts or the db Dockerfile):
 
 ```sh
 docker compose up --build -d app
 ```
 
-Ricostruisce e riavvia solo il container `app`, lasciando il database intatto e operativo. Più rapido della ricostruzione completa.
+Rebuilds and restarts only the `app` container, leaving the database intact and running. Faster than a full rebuild.
 
-Per ricostruire tutto lo stack:
+To rebuild the full stack:
 
 ```sh
 docker compose up --build
 ```
 
-## Connessione diretta al database
+## Direct database connection
 
-Usa **Azure Data Studio** o **DBeaver** con questi parametri mentre lo stack è attivo:
+Use **Azure Data Studio** or **DBeaver** with the following parameters while the stack is running:
 
-| Parametro | Valore |
+| Parameter | Value |
 |---|---|
 | Host | `localhost` |
-| Porta | `1433` |
-| Utente | `sa` |
+| Port | `1433` |
+| User | `sa` |
 | Password | `StrongPass123!` |
 | Database | `LibraryDB` |
 
-## Struttura dei container
+## Container structure
 
-| Container | Immagine base | Porta esposta |
+| Container | Base image | Exposed port |
 |---|---|---|
 | `library-app-db-1` | SQL Server 2022 | 1433 |
 | `library-app-app-1` | .NET 10 ASP.NET Core | 8080 |
 
 ## Healthcheck
 
-Il container `app` dipende da `db` tramite `condition: service_healthy`. Il healthcheck esegue ogni 10 secondi una query T-SQL che verifica l'esistenza del database `LibraryDB`; solo quando passa, Docker avvia l'app. In caso di avvio lento del db, aumentare `retries` in `docker-compose.yml`.
+The `app` container depends on `db` via `condition: service_healthy`. The healthcheck runs a T-SQL query every 10 seconds to verify that the `LibraryDB` database exists; only once it passes does Docker start the app. If the database is slow to start, increase `retries` in `docker-compose.yml`.

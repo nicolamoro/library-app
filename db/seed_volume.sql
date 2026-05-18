@@ -2,20 +2,20 @@
 -- Library Management System — High-Volume Seed (stress test)
 -- ============================================================
 :on error exit
--- Eseguire MANUALMENTE per popolare il DB con un elevato
--- numero di righe e testare il comportamento sotto carico.
+-- Run MANUALLY to populate the DB with a large number of rows
+-- and test behaviour under load.
 --
--- Volumi inseriti:
---   Generi:   14   (totale DB ~20)
---   Editori:  50
---   Autori:   300
---   Libri:    1.000 (+ ~1.500 associazioni autori)
---   Clienti:  2.000
---   Prestiti: 10.000 (70% restituiti, 20% attivi, 10% scaduti)
+-- Volumes inserted:
+--   Genres:    14   (DB total ~20)
+--   Publishers: 50
+--   Authors:   300
+--   Books:     1,000 (+ ~1,500 author associations)
+--   Users:     2,000
+--   Loans:    10,000 (70% returned, 20% active, 10% overdue)
 --
--- PREREQUISITO: 03_seed.sql già applicato.
--- ATTENZIONE:   script non idempotente — non eseguire due volte
---               (genera violazioni di vincolo UNIQUE su isbn e tax_code).
+-- PREREQUISITE: 03_seed.sql already applied.
+-- WARNING:      script is not idempotent — do not run twice
+--               (generates UNIQUE constraint violations on isbn and tax_code).
 -- ============================================================
 
 USE LibraryDB;
@@ -24,16 +24,16 @@ GO
 SET QUOTED_IDENTIFIER ON;
 GO
 
--- Guardia: esce subito se il volume seed è già stato applicato
+-- Guard: exit immediately if the volume seed has already been applied
 IF EXISTS (SELECT 1 FROM books WHERE isbn LIKE 'VOL%')
 BEGIN
-    RAISERROR('Volume seed già applicato (trovati libri con ISBN VOL*). Uscita senza modifiche.', 16, 1);
+    RAISERROR('Volume seed already applied (books with ISBN VOL* found). Exiting without changes.', 16, 1);
     RETURN;
 END
 GO
 
 -- ============================================================
--- 1. GENERI  (14 aggiuntivi → ~20 totali nel DB)
+-- 1. GENRES  (14 additional → ~20 total in DB)
 -- ============================================================
 INSERT INTO genres (name, description) VALUES
     (N'Romance',          N'Romanzi incentrati su storie d''amore e relazioni'),
@@ -52,11 +52,11 @@ INSERT INTO genres (name, description) VALUES
     (N'Cooking',          N'Libri di cucina e ricettari');
 GO
 
-PRINT 'Generi inseriti.';
+PRINT 'Genres inserted.';
 GO
 
 -- ============================================================
--- 2. EDITORI  (50)
+-- 2. PUBLISHERS  (50)
 -- ============================================================
 DECLARE @i INT = 1;
 WHILE @i <= 50
@@ -73,11 +73,11 @@ BEGIN
 END
 GO
 
-PRINT 'Editori inseriti.';
+PRINT 'Publishers inserted.';
 GO
 
 -- ============================================================
--- 3. AUTORI  (300)
+-- 3. AUTHORS  (300)
 -- ============================================================
 DECLARE @i INT = 1;
 WHILE @i <= 300
@@ -100,11 +100,11 @@ BEGIN
 END
 GO
 
-PRINT 'Autori inseriti.';
+PRINT 'Authors inserted.';
 GO
 
 -- ============================================================
--- 4. LIBRI  (1.000)  +  BOOK_AUTHORS
+-- 4. BOOKS  (1,000)  +  BOOK_AUTHORS
 -- ============================================================
 DECLARE @i          INT;
 DECLARE @bookId     INT;
@@ -118,7 +118,7 @@ DECLARE @authRange    INT;
 
 SELECT @totalGenres = COUNT(*) FROM genres;
 SELECT @totalPubs   = COUNT(*) FROM publishers;
--- i 300 autori appena inseriti sono gli ultimi in tabella
+-- the 300 authors just inserted are the last rows in the table
 SELECT @lastAuth = MAX(author_id) FROM authors;
 SET @firstAuth = @lastAuth - 299;   -- primo autore del batch volume
 SET @authRange = 300;
@@ -149,7 +149,7 @@ BEGIN
     SET @authId = @firstAuth + (@i % @authRange);
     INSERT INTO book_authors (book_id, author_id) VALUES (@bookId, @authId);
 
-    -- secondo autore per un libro su due (se diverso dal primo)
+    -- second author for every other book (if different from the first)
     IF @i % 2 = 0
     BEGIN
         SET @auth2Id = @firstAuth + ((@i + 151) % @authRange);
@@ -161,11 +161,11 @@ BEGIN
 END
 GO
 
-PRINT 'Libri e associazioni autori inseriti.';
+PRINT 'Books and author associations inserted.';
 GO
 
 -- ============================================================
--- 5. CLIENTI  (2.000)
+-- 5. USERS  (2,000)
 -- ============================================================
 DECLARE @i INT = 1;
 WHILE @i <= 2000
@@ -188,14 +188,14 @@ BEGIN
 END
 GO
 
-PRINT 'Clienti inseriti.';
+PRINT 'Users inserted.';
 GO
 
 -- ============================================================
--- 6. PRESTITI  (10.000)
---    70 % restituiti  (alcuni con multa, alcuni pagata)
---    20 % attivi      (in corso, entro scadenza)
---    10 % scaduti     (non restituiti, multa calcolata)
+-- 6. LOANS  (10,000)
+--    70 % returned  (some with fine, some paid)
+--    20 % active    (ongoing, within due date)
+--    10 % overdue   (not returned, fine calculated)
 -- ============================================================
 DECLARE @i         INT;
 DECLARE @userId    INT;
@@ -224,7 +224,7 @@ BEGIN
 
     IF @i % 10 < 7
     BEGIN
-        -- 70 %: restituito
+        -- 70 %: returned
         SET @loanDate = DATEADD(DAY, -((@i * 5) % 1825 + 35), CAST(GETDATE() AS DATE));
         SET @dueDate  = DATEADD(DAY, 30, @loanDate);
         SET @retDate  = DATEADD(DAY,  5 + (@i % 28), @loanDate);
@@ -246,7 +246,7 @@ BEGIN
     END
     ELSE IF @i % 10 < 9
     BEGIN
-        -- 20 %: attivo (entro la scadenza)
+        -- 20 %: active (within due date)
         SET @loanDate = DATEADD(DAY, -(@i % 25), CAST(GETDATE() AS DATE));
         SET @dueDate  = DATEADD(DAY, 30, @loanDate);
         INSERT INTO loans
@@ -256,7 +256,7 @@ BEGIN
     END
     ELSE
     BEGIN
-        -- 10 %: scaduto (non restituito oltre la data)
+        -- 10 %: overdue (not returned past due date)
         SET @loanDate = DATEADD(DAY, -(35 + (@i * 3) % 60), CAST(GETDATE() AS DATE));
         SET @dueDate  = DATEADD(DAY, 30, @loanDate);
         SET @daysOver = DATEDIFF(DAY, @dueDate, CAST(GETDATE() AS DATE));
@@ -272,16 +272,16 @@ END
 GO
 
 -- ============================================================
--- Riepilogo
+-- Summary
 -- ============================================================
 PRINT '';
-PRINT '=== Volume seed completato ===';
+PRINT '=== Volume seed completed ===';
 PRINT '';
-SELECT 'genres'     AS tabella, COUNT(*) AS righe_totali FROM genres     UNION ALL
-SELECT 'publishers',             COUNT(*)                FROM publishers  UNION ALL
-SELECT 'authors',                COUNT(*)                FROM authors     UNION ALL
-SELECT 'books',                  COUNT(*)                FROM books       UNION ALL
-SELECT 'book_authors',           COUNT(*)                FROM book_authors UNION ALL
-SELECT 'users',                  COUNT(*)                FROM users       UNION ALL
-SELECT 'loans',                  COUNT(*)                FROM loans;
+SELECT 'genres'      AS table_name, COUNT(*) AS total_rows FROM genres      UNION ALL
+SELECT 'publishers',                COUNT(*)               FROM publishers   UNION ALL
+SELECT 'authors',                   COUNT(*)               FROM authors      UNION ALL
+SELECT 'books',                     COUNT(*)               FROM books        UNION ALL
+SELECT 'book_authors',              COUNT(*)               FROM book_authors UNION ALL
+SELECT 'users',                     COUNT(*)               FROM users        UNION ALL
+SELECT 'loans',                     COUNT(*)               FROM loans;
 GO

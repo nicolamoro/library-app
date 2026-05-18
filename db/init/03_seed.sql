@@ -37,16 +37,16 @@ INSERT INTO authors (first_name, last_name, birth_date, nationality, biography) 
 GO
 
 -- books
--- available_copies riflette i prestiti attivi/scaduti inseriti sotto
+-- available_copies reflects the active/overdue loans inserted below
 INSERT INTO books (isbn, title, publisher_id, genre_id, publication_year, language, page_count, total_copies, available_copies) VALUES
-    ('978-8845221224', 'Il Nome della Rosa',                      1, 4, 1980, 'Italiano', 502, 3, 2),  -- 1 copia in prestito attivo
+    ('978-8845221224', 'Il Nome della Rosa',                      1, 4, 1980, 'Italiano', 502, 3, 2),  -- 1 copy on active loan
     ('978-8806924041', 'Se una notte d''inverno un viaggiatore',  2, 5, 1979, 'Italiano', 258, 2, 2),
     ('978-8866329626', 'L''Amica Geniale',                        2, 5, 2011, 'Italiano', 400, 3, 3),
     ('978-8804668237', '1984',                                    3, 3, 1949, 'Italiano', 328, 4, 4),
     ('978-8804668244', 'La Fattoria degli Animali',               3, 3, 1945, 'Italiano', 140, 3, 3),
     ('978-8804521018', 'It',                                      3, 2, 1986, 'Italiano', 1216, 2, 2),
-    ('978-8804523369', 'The Shining',                             3, 2, 1977, 'Italiano', 432, 2, 1),  -- 1 copia in prestito scaduto
-    ('978-0747532699', 'Harry Potter e la Pietra Filosofale',     4, 1, 1997, 'Italiano', 309, 5, 4); -- 1 copia in prestito attivo
+    ('978-8804523369', 'The Shining',                             3, 2, 1977, 'Italiano', 432, 2, 1),  -- 1 copy on overdue loan
+    ('978-0747532699', 'Harry Potter e la Pietra Filosofale',     4, 1, 1997, 'Italiano', 309, 5, 4); -- 1 copy on active loan
 GO
 
 -- book_authors
@@ -75,12 +75,12 @@ VALUES ('Admin', 'Admin', 'admin@email.it', '$2a$12$jUdgyLqapIXlfh7J0zZKA.04tWFu
 GO
 
 -- loans
--- Prestito 1: Mario Rossi — Il Nome della Rosa — ATTIVO (preso 27 giorni fa, scade tra 3 giorni)
--- Prestito 2: Lucia Bianchi — 1984 — RESTITUITO (restituito 3 giorni prima della scadenza)
--- Prestito 3: Francesco Conti — Harry Potter — ATTIVO (preso 16 giorni fa, scade tra 14 giorni)
--- Prestito 4: Mario Rossi — The Shining — SCADUTO (scaduto 37 giorni fa)
--- Prestito 5: Giulia Marino — L'Amica Geniale — RESTITUITO (restituito 4 giorni prima della scadenza)
--- Prestito 6: Lucia Bianchi — La Fattoria degli Animali — RESTITUITO (restituito 2 giorni prima della scadenza)
+-- Loan 1: Mario Rossi — Il Nome della Rosa — ACTIVE (borrowed 27 days ago, due in 3 days)
+-- Loan 2: Lucia Bianchi — 1984 — RETURNED (returned 3 days before due date)
+-- Loan 3: Francesco Conti — Harry Potter — ACTIVE (borrowed 16 days ago, due in 14 days)
+-- Loan 4: Mario Rossi — The Shining — OVERDUE (37 days past due)
+-- Loan 5: Giulia Marino — L'Amica Geniale — RETURNED (returned 4 days before due date)
+-- Loan 6: Lucia Bianchi — La Fattoria degli Animali — RETURNED (returned 2 days before due date)
 INSERT INTO loans (user_id, book_id, loan_date, due_date, return_date, status, daily_fine_rate, fine_amount, fine_paid) VALUES
     (1, 1, DATEADD(DAY,  -27, CAST(GETDATE() AS DATE)), DATEADD(DAY,   3, CAST(GETDATE() AS DATE)), NULL,                                        'active',   0.50, NULL, 0),
     (2, 4, DATEADD(DAY,  -77, CAST(GETDATE() AS DATE)), DATEADD(DAY, -47, CAST(GETDATE() AS DATE)), DATEADD(DAY, -50, CAST(GETDATE() AS DATE)), 'returned', 0.50, NULL, 0),
