@@ -157,8 +157,16 @@ public class UserRepository(DapperContext ctx) : IUserRepository
                 phone      = @Phone
             WHERE user_id = @UserId
             """,
-            new { UserId = userId, FirstName = firstName, LastName = lastName,
-                  BirthDate = birthDate, TaxCode = taxCode, Address = address, Phone = phone });
+            new
+            {
+                UserId = userId,
+                FirstName = firstName,
+                LastName = lastName,
+                BirthDate = birthDate,
+                TaxCode = taxCode,
+                Address = address,
+                Phone = phone
+            });
 
         if (!string.IsNullOrWhiteSpace(newPassword))
         {
