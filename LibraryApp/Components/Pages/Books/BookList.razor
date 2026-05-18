@@ -1,6 +1,6 @@
 @page "/books"
 @attribute [Authorize(Roles = "admin")]
-@inject BookRepository BookRepo
+@inject IBookRepository BookRepo
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 

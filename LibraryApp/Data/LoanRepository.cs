@@ -4,7 +4,7 @@ using LibraryApp.Models;
 
 namespace LibraryApp.Data;
 
-public class LoanRepository(DapperContext ctx)
+public class LoanRepository(DapperContext ctx) : ILoanRepository
 {
     private const string SelectCols = """
         l.loan_id LoanId, l.user_id UserId,

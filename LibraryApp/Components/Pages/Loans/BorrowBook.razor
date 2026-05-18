@@ -1,8 +1,8 @@
 @page "/loans/borrow"
 @attribute [Authorize(Roles = "admin")]
-@inject LoanRepository LoanRepo
-@inject BookRepository BookRepo
-@inject UserRepository UserRepo
+@inject ILoanRepository LoanRepo
+@inject IBookRepository BookRepo
+@inject IUserRepository UserRepo
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 

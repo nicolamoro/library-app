@@ -1,6 +1,6 @@
 @page "/genres"
 @attribute [Authorize(Roles = "admin")]
-@inject GenreRepository GenreRepo
+@inject IGenreRepository GenreRepo
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 

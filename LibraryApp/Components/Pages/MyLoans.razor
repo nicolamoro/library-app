@@ -1,6 +1,6 @@
 @page "/my-loans"
 @attribute [Authorize(Roles = "user")]
-@inject LoanRepository LoanRepo
+@inject ILoanRepository LoanRepo
 @inject AuthenticationStateProvider AuthState
 
 <PageTitle>I Miei Prestiti — Library</PageTitle>

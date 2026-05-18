@@ -3,7 +3,7 @@ using LibraryApp.Models;
 
 namespace LibraryApp.Data;
 
-public class GenreRepository(DapperContext ctx)
+public class GenreRepository(DapperContext ctx) : IGenreRepository
 {
     private static readonly Dictionary<string, string> _sortMap = new()
     {

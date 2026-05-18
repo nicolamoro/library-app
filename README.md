@@ -239,6 +239,36 @@ Sets `return_date` to today, changes `status` to `returned`, calculates `fine_am
 
 ---
 
+## Testing
+
+### Running the tests
+
+```sh
+# All tests (Docker required for integration tests — Testcontainers pulls SQL Server automatically)
+dotnet test LibraryApp.Tests/
+
+# Unit tests only (no Docker required)
+dotnet test LibraryApp.Tests/ --filter "Category=Unit"
+
+# Integration tests only
+dotnet test LibraryApp.Tests/ --filter "Category=Integration"
+
+# Component tests only (bUnit, no Docker required)
+dotnet test LibraryApp.Tests/ --filter "Category=Component"
+```
+
+### Test structure
+
+| Folder | Type | Frameworks |
+|---|---|---|
+| `Unit/` | Model unit tests | xUnit |
+| `Integration/` | Repository integration tests | xUnit + Testcontainers |
+| `Component/` | Blazor component tests | bUnit + NSubstitute |
+
+Integration tests start an ephemeral SQL Server container via **Testcontainers**: no manual setup required, but Docker must be running. The container is shared within a test run and torn down automatically.
+
+---
+
 ## Quick start
 
 ```sh

@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace LibraryApp.Pages;
 
-public class LoginModel(UserRepository userRepo) : PageModel
+public class LoginModel(IUserRepository userRepo) : PageModel
 {
     [BindProperty] public string Email { get; set; } = string.Empty;
     [BindProperty] public string Password { get; set; } = string.Empty;

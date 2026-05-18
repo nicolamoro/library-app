@@ -1,6 +1,6 @@
 @page "/loans"
 @attribute [Authorize(Roles = "admin")]
-@inject LoanRepository LoanRepo
+@inject ILoanRepository LoanRepo
 @inject NavigationManager Nav
 
 <PageTitle>Prestiti — Library</PageTitle>

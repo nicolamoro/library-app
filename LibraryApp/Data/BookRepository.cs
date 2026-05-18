@@ -3,7 +3,7 @@ using LibraryApp.Models;
 
 namespace LibraryApp.Data;
 
-public class BookRepository(DapperContext ctx)
+public class BookRepository(DapperContext ctx) : IBookRepository
 {
     public async Task<IEnumerable<Book>> GetAllAsync()
     {

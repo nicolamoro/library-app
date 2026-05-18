@@ -15,12 +15,12 @@ builder.Services.AddRazorComponents()
 builder.Services.AddMudServices();
 
 builder.Services.AddScoped<DapperContext>();
-builder.Services.AddScoped<BookRepository>();
-builder.Services.AddScoped<UserRepository>();
-builder.Services.AddScoped<LoanRepository>();
-builder.Services.AddScoped<AuthorRepository>();
-builder.Services.AddScoped<GenreRepository>();
-builder.Services.AddScoped<PublisherRepository>();
+builder.Services.AddScoped<IBookRepository, BookRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<ILoanRepository, LoanRepository>();
+builder.Services.AddScoped<IAuthorRepository, AuthorRepository>();
+builder.Services.AddScoped<IGenreRepository, GenreRepository>();
+builder.Services.AddScoped<IPublisherRepository, PublisherRepository>();
 
 builder.Services.AddRazorPages();
 

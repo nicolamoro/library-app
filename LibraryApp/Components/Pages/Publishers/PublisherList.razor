@@ -1,6 +1,6 @@
 @page "/publishers"
 @attribute [Authorize(Roles = "admin")]
-@inject PublisherRepository PublisherRepo
+@inject IPublisherRepository PublisherRepo
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 

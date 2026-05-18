@@ -1,6 +1,6 @@
 @page "/loans/return"
 @attribute [Authorize(Roles = "admin")]
-@inject LoanRepository LoanRepo
+@inject ILoanRepository LoanRepo
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 

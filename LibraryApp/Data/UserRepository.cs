@@ -3,7 +3,7 @@ using LibraryApp.Models;
 
 namespace LibraryApp.Data;
 
-public class UserRepository(DapperContext ctx)
+public class UserRepository(DapperContext ctx) : IUserRepository
 {
     private const string SelectCols = """
         user_id UserId, first_name FirstName, last_name LastName,
