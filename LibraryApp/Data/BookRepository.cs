@@ -31,11 +31,11 @@ public class BookRepository(DapperContext ctx)
 
     private static readonly Dictionary<string, string> _bookSortMap = new()
     {
-        ["title"]     = "Title",
+        ["title"] = "Title",
         ["publisher"] = "PublisherName",
-        ["genre"]     = "GenreName",
-        ["year"]      = "PublicationYear",
-        ["copies"]    = "AvailableCopies",
+        ["genre"] = "GenreName",
+        ["year"] = "PublicationYear",
+        ["copies"] = "AvailableCopies",
     };
 
     public async Task<(IEnumerable<Book> Items, int Total)> GetPagedAsync(

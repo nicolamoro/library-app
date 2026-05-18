@@ -42,10 +42,10 @@ public class UserRepository(DapperContext ctx)
 
     private static readonly Dictionary<string, string> _userSortMap = new()
     {
-        ["name"]      = "last_name, first_name",
-        ["email"]     = "email",
-        ["role"]      = "is_admin",
-        ["status"]    = "status",
+        ["name"] = "last_name, first_name",
+        ["email"] = "email",
+        ["role"] = "is_admin",
+        ["status"] = "status",
         ["lastlogin"] = "last_login",
     };
 
@@ -107,8 +107,16 @@ public class UserRepository(DapperContext ctx)
         return await conn.ExecuteScalarAsync<int>(sql,
             new
             {
-                u.FirstName, u.LastName, u.BirthDate, u.TaxCode, u.Address,
-                u.Phone, u.Email, u.Status, Hash = hash, u.IsAdmin
+                u.FirstName,
+                u.LastName,
+                u.BirthDate,
+                u.TaxCode,
+                u.Address,
+                u.Phone,
+                u.Email,
+                u.Status,
+                Hash = hash,
+                u.IsAdmin
             });
     }
 

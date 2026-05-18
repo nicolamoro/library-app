@@ -29,14 +29,14 @@ public class LoanRepository(DapperContext ctx)
 
     private static readonly Dictionary<string, string> _loanSortMap = new()
     {
-        ["id"]         = "l.loan_id",
-        ["user"]       = "u.last_name, u.first_name",
-        ["book"]       = "b.title",
-        ["loandate"]   = "l.loan_date",
-        ["duedate"]    = "l.due_date",
+        ["id"] = "l.loan_id",
+        ["user"] = "u.last_name, u.first_name",
+        ["book"] = "b.title",
+        ["loandate"] = "l.loan_date",
+        ["duedate"] = "l.due_date",
         ["returndate"] = "l.return_date",
-        ["status"]     = "l.status",
-        ["fine"]       = "l.fine_amount",
+        ["status"] = "l.status",
+        ["fine"] = "l.fine_amount",
     };
 
     public async Task<(IEnumerable<LoanDetail> Items, int Total)> GetPagedAsync(
@@ -131,11 +131,11 @@ public class LoanRepository(DapperContext ctx)
 
     private static readonly Dictionary<string, string> _overdueSortMap = new()
     {
-        ["id"]      = "l.loan_id",
-        ["user"]    = "u.last_name, u.first_name",
-        ["book"]    = "b.title",
+        ["id"] = "l.loan_id",
+        ["user"] = "u.last_name, u.first_name",
+        ["book"] = "b.title",
         ["duedate"] = "l.due_date",
-        ["fine"]    = "l.fine_amount",
+        ["fine"] = "l.fine_amount",
     };
 
     public async Task<(IEnumerable<LoanDetail> Items, int Total)> GetOverduePagedAsync(

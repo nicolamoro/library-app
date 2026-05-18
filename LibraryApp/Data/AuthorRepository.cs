@@ -7,10 +7,10 @@ public class AuthorRepository(DapperContext ctx)
 {
     private static readonly Dictionary<string, string> _sortMap = new()
     {
-        ["lastname"]    = "LastName",
-        ["firstname"]   = "FirstName",
+        ["lastname"] = "LastName",
+        ["firstname"] = "FirstName",
         ["nationality"] = "Nationality",
-        ["birthdate"]   = "BirthDate",
+        ["birthdate"] = "BirthDate",
     };
 
     public async Task<(IEnumerable<Author> Items, int Total)> GetPagedAsync(

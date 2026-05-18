@@ -27,11 +27,11 @@ builder.Services.AddRazorPages();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.LoginPath         = "/login";
-        options.AccessDeniedPath  = "/access-denied";
-        options.Cookie.HttpOnly   = true;
-        options.Cookie.SameSite   = SameSiteMode.Strict;
-        options.ExpireTimeSpan    = TimeSpan.FromHours(8);
+        options.LoginPath = "/login";
+        options.AccessDeniedPath = "/access-denied";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
     });
 
