@@ -21,8 +21,10 @@ Web application for managing a library: book catalogue, user registry, and loan 
 - **User registry** — list with status badge (active/suspended) and column sorting, creation and editing, suspension blocks new loans
 - **Loan management** — status-filterable list with column sorting, new loan with availability check, return with real-time fine calculation
 - **My loans** — user's loan history with column sorting
-- **Authentication** — email and password login (BCrypt), cookie session, two roles: `admin` (full access) and `user` (My Loans only)
-- **Dark mode** — moon/sun toggle in the top bar; preference persisted in `localStorage`
+- **User profile** — self-service page (`/profile`) for all authenticated users: edit personal data (first name, last name, phone, tax code, address, birth date) and change password; email is read-only and `status`/`is_admin` are never modifiable (enforced server-side)
+- **Authentication** — email and password login (BCrypt), cookie session, two roles: `admin` (full access) and `user` (My Loans + Profile)
+- **AppBar user menu** — clicking the account icon/email opens a dropdown with Profile, dark/light mode toggle, and Logout
+- **Dark mode** — toggle in the AppBar user menu; preference persisted in `localStorage`
 
 ## Project structure
 
@@ -64,6 +66,8 @@ LibraryApp/
         LoanList.razor          — loan list with status filter
         BorrowBook.razor        — new loan
         ReturnBook.razor        — return with fine calculation
+      MyLoans.razor             — user's own loan history
+      UserProfile.razor         — self-service profile editing (all authenticated users)
   Data/
     DapperContext.cs            — SQL Server connection factory
     BookRepository.cs           — book CRUD + author/genre/publisher lookups for dropdowns

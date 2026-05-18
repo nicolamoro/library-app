@@ -11,5 +11,8 @@ public interface IUserRepository
     Task<User?> GetByIdAsync(int id);
     Task<int> CreateAsync(User u, string plainPassword);
     Task UpdateAsync(User u, string? newPassword = null);
+    Task UpdateProfileAsync(int userId, string firstName, string lastName,
+        DateOnly? birthDate, string? taxCode, string? address, string? phone,
+        string? newPassword = null);
     Task DeleteAsync(int id);
 }

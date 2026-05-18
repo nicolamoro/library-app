@@ -1,0 +1,132 @@
+@page "/profile"
+@attribute [Authorize]
+@inject IUserRepository UserRepo
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Il Mio Profilo — Library</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Il Mio Profilo</MudText>
+
+@if (_user is null)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudCard Elevation="2">
+        <MudCardContent>
+            <MudText Typo="Typo.h6" Class="mb-3">Dati Anagrafici</MudText>
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_user.FirstName" Label="Nome" Required="true" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_user.LastName" Label="Cognome" Required="true" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_user.Phone" Label="Telefono" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_user.TaxCode" Label="Codice Fiscale" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="_birthDateProxy" Label="Data di nascita" Variant="Variant.Outlined"
+                                   DateFormat="dd/MM/yyyy" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_user.Address" Label="Indirizzo" Variant="Variant.Outlined" />
+                </MudItem>
+            </MudGrid>
+
+            <MudDivider Class="my-4" />
+            <MudText Typo="Typo.h6" Class="mb-3">Account</MudText>
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField Value="_user.Email" Label="Email" InputType="InputType.Email"
+                                  ReadOnly="true" Variant="Variant.Outlined"
+                                  HelperText="Non modificabile" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_newPassword" Label="Nuova Password"
+                                  InputType="InputType.Password" Variant="Variant.Outlined"
+                                  HelperText="Lascia vuoto per non modificare" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_confirmPassword" Label="Conferma Password"
+                                  InputType="InputType.Password" Variant="Variant.Outlined"
+                                  HelperText="Ripeti la nuova password" />
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+        <MudCardActions Class="pa-4">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync"
+                       StartIcon="@Icons.Material.Filled.Save">
+                Salva
+            </MudButton>
+            <MudButton Variant="Variant.Text" Color="Color.Default" Class="ml-2"
+                       OnClick="@(() => Nav.NavigateTo(_isAdmin ? "/" : "/my-loans"))">
+                Annulla
+            </MudButton>
+        </MudCardActions>
+    </MudCard>
+}
+
+@code {
+    private User? _user;
+    private int _userId;
+    private bool _isAdmin;
+    private string _newPassword = string.Empty;
+    private string _confirmPassword = string.Empty;
+
+    private DateTime? _birthDateProxy
+    {
+        get => _user?.BirthDate?.ToDateTime(TimeOnly.MinValue);
+        set => _user!.BirthDate = value.HasValue ? DateOnly.FromDateTime(value.Value) : null;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        var claim = state.User.FindFirst("user_id")?.Value;
+        _userId = int.TryParse(claim, out var id) ? id : 0;
+        _isAdmin = state.User.IsInRole("admin");
+
+        if (_userId == 0) { Nav.NavigateTo("/"); return; }
+
+        _user = await UserRepo.GetByIdAsync(_userId);
+        if (_user is null) Nav.NavigateTo("/");
+    }
+
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_user!.FirstName) || string.IsNullOrWhiteSpace(_user.LastName))
+        {
+            Snackbar.Add("Nome e cognome sono obbligatori.", Severity.Warning);
+            return;
+        }
+        if (!string.IsNullOrWhiteSpace(_newPassword) && _newPassword != _confirmPassword)
+        {
+            Snackbar.Add("Le password non coincidono.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            await UserRepo.UpdateProfileAsync(
+                _userId,
+                _user.FirstName, _user.LastName,
+                _user.BirthDate, _user.TaxCode, _user.Address, _user.Phone,
+                string.IsNullOrWhiteSpace(_newPassword) ? null : _newPassword);
+
+            _newPassword = string.Empty;
+            _confirmPassword = string.Empty;
+            Snackbar.Add("Profilo aggiornato con successo.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Errore: {ex.Message}", Severity.Error);
+        }
+    }
+}

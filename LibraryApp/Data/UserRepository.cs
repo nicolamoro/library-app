@@ -142,6 +142,33 @@ public class UserRepository(DapperContext ctx) : IUserRepository
         }
     }
 
+    public async Task UpdateProfileAsync(int userId, string firstName, string lastName,
+        DateOnly? birthDate, string? taxCode, string? address, string? phone,
+        string? newPassword = null)
+    {
+        using var conn = ctx.CreateConnection();
+        await conn.ExecuteAsync("""
+            UPDATE users SET
+                first_name = @FirstName,
+                last_name  = @LastName,
+                birth_date = @BirthDate,
+                tax_code   = @TaxCode,
+                address    = @Address,
+                phone      = @Phone
+            WHERE user_id = @UserId
+            """,
+            new { UserId = userId, FirstName = firstName, LastName = lastName,
+                  BirthDate = birthDate, TaxCode = taxCode, Address = address, Phone = phone });
+
+        if (!string.IsNullOrWhiteSpace(newPassword))
+        {
+            var hash = BCrypt.Net.BCrypt.HashPassword(newPassword, workFactor: 12);
+            await conn.ExecuteAsync(
+                "UPDATE users SET password_hash = @hash WHERE user_id = @userId",
+                new { hash, userId });
+        }
+    }
+
     public async Task DeleteAsync(int id)
     {
         using var conn = ctx.CreateConnection();

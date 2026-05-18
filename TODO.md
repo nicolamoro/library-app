@@ -5,8 +5,8 @@
 - [x] auth feature missing in README
 - [x] fine shown in loans page show a different value compared to other pages
 - [x] don't hardcode db connection string
-- [ ] user must be able to see/update its data
+- [x] user must be able to see/update its data
 - [x] return button in every row of the loans table
 - [x] my-loans page should have preset filters on state, like the loans page
 - [ ] UI language change
-- [ ] github workflows
+- [x] github workflows

@@ -13,21 +13,35 @@
                        OnClick="@(() => _drawerOpen = !_drawerOpen)" />
         <MudText Typo="Typo.h6" Class="ml-2">Library Management</MudText>
         <MudSpacer />
-        <AuthorizeView>
+        <AuthorizeView Context="authCtx">
             <Authorized>
-                <MudText Typo="Typo.body2" Color="Color.Inherit" Class="mr-2">
-                    @context.User.Identity?.Name
-                </MudText>
-                <MudIconButton Icon="@Icons.Material.Filled.Logout"
-                               Color="Color.Inherit"
-                               title="Esci"
-                               OnClick="@(() => NavManager.NavigateTo("/logout", forceLoad: true))" />
+                <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true">
+                    <ActivatorContent>
+                        <MudButton Color="Color.Inherit" Variant="Variant.Text"
+                                   StartIcon="@Icons.Material.Filled.AccountCircle"
+                                   OnClick="@context.ToggleAsync"
+                                   Style="text-transform:none">
+                            @authCtx.User.Identity?.Name
+                        </MudButton>
+                    </ActivatorContent>
+                    <ChildContent>
+                        <MudMenuItem Icon="@Icons.Material.Filled.Person"
+                                     OnClick="@(() => NavManager.NavigateTo("/profile"))">
+                            Profilo
+                        </MudMenuItem>
+                        <MudMenuItem Icon="@(_isDarkMode ? Icons.Material.Filled.WbSunny : Icons.Material.Filled.NightsStay)"
+                                     OnClick="ToggleDarkMode">
+                            @(_isDarkMode ? "Modalità chiara" : "Modalità scura")
+                        </MudMenuItem>
+                        <MudDivider />
+                        <MudMenuItem Icon="@Icons.Material.Filled.Logout"
+                                     OnClick="@(() => NavManager.NavigateTo("/logout", forceLoad: true))">
+                            Esci
+                        </MudMenuItem>
+                    </ChildContent>
+                </MudMenu>
             </Authorized>
         </AuthorizeView>
-        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.WbSunny : Icons.Material.Filled.NightsStay)"
-                       Color="Color.Inherit"
-                       OnClick="ToggleDarkMode"
-                       title="@(_isDarkMode ? "Modalità chiara" : "Modalità scura")" />
     </MudAppBar>
 
     <MudDrawer @bind-Open="_drawerOpen" Elevation="1" Variant="DrawerVariant.Responsive">

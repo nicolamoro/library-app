@@ -65,8 +65,8 @@ Browser ──WebSocket──► Blazor Server Circuit
 
 | Path | Purpose |
 |---|---|
-| `LibraryApp/Components/Pages/` | Razor pages: Home (dashboard), Books/, Users/, Loans/, MyLoans |
-| `LibraryApp/Components/Layout/` | Shell: `MainLayout.razor` (AppBar, Drawer, dark mode, logout), `NavMenu.razor` |
+| `LibraryApp/Components/Pages/` | Razor pages: Home (dashboard), Books/, Users/, Loans/, MyLoans, UserProfile |
+| `LibraryApp/Components/Layout/` | Shell: `MainLayout.razor` (AppBar con dropdown utente, Drawer), `NavMenu.razor` |
 | `LibraryApp/Data/` | `DapperContext` (connection factory), repositories for Book/Author/Genre/Publisher/User/Loan |
 | `LibraryApp/Models/` | POCOs: `Book`, `Author`, `Genre`, `Publisher`, `User`, `LoanDetail` |
 | `LibraryApp/Pages/` | Razor Pages: `Login.cshtml`, `Logout.cshtml` (cookie auth) |
@@ -105,7 +105,7 @@ Cookie-based authentication (ASP.NET Core `AddCookie`) — **not** ASP.NET Ident
 
 **Roles:**
 - `admin` — full access: Dashboard, Books, Authors, Genres, Publishers, Users CRUD, Loans
-- `user` — can only view their own loans at `/my-loans`
+- `user` — può visualizzare i propri prestiti a `/my-loans` e modificare il proprio profilo a `/profile`
 
 **Login/logout via Razor Pages** (`LibraryApp/Pages/Login.cshtml`, `Logout.cshtml`). Blazor runs on WebSocket so `Set-Cookie` headers must be issued on a plain HTTP response; Razor Pages handle this. All navigation to `/login` and `/logout` from Blazor uses `NavigationManager.NavigateTo(..., forceLoad: true)`.
 
@@ -126,9 +126,15 @@ Cookie-based authentication (ASP.NET Core `AddCookie`) — **not** ASP.NET Ident
 | `giulia.marino@email.it` | `user123` | user |
 | `antonio.deluca@email.it` | `user123` | user (suspended) |
 
-**Claims issued at login:** `NameIdentifier` (user_id), `Name` (email), `Role` (admin/user), `user_id` (used by `MyLoans` to filter loans).
+**Claims issued at login:** `NameIdentifier` (user_id), `Name` (email), `Role` (admin/user), `user_id` (used by `MyLoans` and `UserProfile` to filter/load data).
 
-**Authorization in Blazor:** `Routes.razor` wraps everything in `<CascadingAuthenticationState>` and uses `<AuthorizeRouteView>`. Unauthenticated users are redirected to `/login`; authenticated users with wrong role see `/access-denied`. All admin pages carry `@attribute [Authorize(Roles = "admin")]`.
+**Authorization in Blazor:** `Routes.razor` wraps everything in `<CascadingAuthenticationState>` and uses `<AuthorizeRouteView>`. Unauthenticated users are redirected to `/login`; authenticated users with wrong role see `/access-denied`. All admin pages carry `@attribute [Authorize(Roles = "admin")]`. The `/profile` page uses `@attribute [Authorize]` (no role restriction).
+
+**Self-service profile (`/profile`):** Accessible to all authenticated users. Allows editing of `first_name`, `last_name`, `birth_date`, `tax_code`, `address`, `phone`, and password change. Email, `status`, and `is_admin` are never modifiable via this page — enforced server-side by `UserRepository.UpdateProfileAsync` whose SQL does not include those columns.
+
+### AppBar dropdown menu
+
+The top-right `MudMenu` is triggered by clicking the account icon + email. Menu items: **Profilo** (→ `/profile`), **dark/light mode toggle**, **Esci** (logout). `MudPopoverProvider` in `MainLayout.razor` is required for `MudMenu` to render.
 
 ### Dark mode
 

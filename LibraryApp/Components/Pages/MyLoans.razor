@@ -8,6 +8,13 @@
 <MudText Typo="Typo.h4" Class="mb-1">I Miei Prestiti</MudText>
 <MudText Typo="Typo.subtitle1" Class="mb-4 mud-text-secondary">Storico completo dei tuoi prestiti</MudText>
 
+@if (_overdueCount > 0)
+{
+    <MudAlert Severity="Severity.Warning" Class="mb-4">
+        Hai @_overdueCount prestito@(_overdueCount == 1 ? "" : "i") scaduto@(_overdueCount == 1 ? "" : "i").
+    </MudAlert>
+}
+
 <MudToggleGroup T="string" Value="_filter" ValueChanged="SetFilter" Color="Color.Primary" Outlined="true" Class="mb-4">
     <MudToggleItem Value="@("all")">Tutti</MudToggleItem>
     <MudToggleItem Value="@("active")">Attivi</MudToggleItem>
@@ -63,12 +70,19 @@
     private MudTable<LoanDetail> _table = null!;
     private int _userId;
     private string _filter = "all";
+    private int _overdueCount;
 
     protected override async Task OnInitializedAsync()
     {
         var state = await AuthState.GetAuthenticationStateAsync();
         var claim = state.User.FindFirst("user_id")?.Value;
         _userId = int.TryParse(claim, out var id) ? id : 0;
+
+        if (_userId != 0)
+        {
+            var (_, total) = await LoanRepo.GetByUserIdPagedAsync(_userId, 0, 1, "overdue");
+            _overdueCount = total;
+        }
     }
 
     private async Task<TableData<LoanDetail>> LoadData(TableState state, CancellationToken ct)
