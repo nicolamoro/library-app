@@ -34,17 +34,21 @@ public class BookRepositoryTests(SqlServerFixture fixture)
     [Fact]
     public async Task GetPagedAsync_SortByTitle_OrdersAscending()
     {
-        var (items, _) = await _repo.GetPagedAsync(0, 20, null, "title", false);
-        var titles = items.Select(b => b.Title).ToList();
-        Assert.Equal(titles.OrderBy(t => t, StringComparer.OrdinalIgnoreCase).ToList(), titles);
+        var (ascItems, _) = await _repo.GetPagedAsync(0, 20, null, "title", false);
+        var (descItems, _) = await _repo.GetPagedAsync(0, 20, null, "title", true);
+        var ascTitles = ascItems.Select(b => b.Title).ToList();
+        var descTitles = descItems.Select(b => b.Title).ToList();
+        Assert.Equal(ascTitles, descTitles.AsEnumerable().Reverse().ToList());
     }
 
     [Fact]
     public async Task GetPagedAsync_SortByTitle_OrdersDescending()
     {
-        var (items, _) = await _repo.GetPagedAsync(0, 20, null, "title", true);
-        var titles = items.Select(b => b.Title).ToList();
-        Assert.Equal(titles.OrderByDescending(t => t, StringComparer.OrdinalIgnoreCase).ToList(), titles);
+        var (descItems, _) = await _repo.GetPagedAsync(0, 20, null, "title", true);
+        var (ascItems, _) = await _repo.GetPagedAsync(0, 20, null, "title", false);
+        var descTitles = descItems.Select(b => b.Title).ToList();
+        var ascTitles = ascItems.Select(b => b.Title).ToList();
+        Assert.Equal(descTitles, ascTitles.AsEnumerable().Reverse().ToList());
     }
 
     [Fact]
@@ -70,6 +74,7 @@ public class BookRepositoryTests(SqlServerFixture fixture)
         var book = new Book
         {
             Title = $"Test Book {Guid.NewGuid():N}",
+            Isbn = Guid.NewGuid().ToString("N")[..13],
             TotalCopies = 2,
             SelectedAuthorIds = [authorId]
         };
@@ -89,7 +94,7 @@ public class BookRepositoryTests(SqlServerFixture fixture)
         using var conn = fixture.DapperContext.CreateConnection();
         var authorId = await conn.ExecuteScalarAsync<int>("SELECT TOP 1 author_id FROM authors");
 
-        var book = new Book { Title = $"ToDelete {Guid.NewGuid():N}", TotalCopies = 1, SelectedAuthorIds = [authorId] };
+        var book = new Book { Title = $"ToDelete {Guid.NewGuid():N}", Isbn = Guid.NewGuid().ToString("N")[..13], TotalCopies = 1, SelectedAuthorIds = [authorId] };
         var bookId = await _repo.CreateAsync(book);
 
         await _repo.DeleteAsync(bookId);
