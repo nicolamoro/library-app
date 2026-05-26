@@ -95,7 +95,6 @@ jobs:
           images: ghcr.io/${{ github.repository_owner }}/library-app
           tags: |
             type=sha
-            type=raw,value=latest
 
       - name: Build and push
         uses: docker/build-push-action@v7
