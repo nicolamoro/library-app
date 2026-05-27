@@ -122,11 +122,6 @@ jobs:
           DEPLOY_SCRIPT=$(base64 -w 0 << 'SCRIPT_EOF'
           set -euo pipefail
 
-          IMDS_TOKEN=$(curl -sf -X PUT "http://169.254.169.254/latest/api/token" \
-            -H "X-aws-ec2-metadata-token-ttl-seconds: 60")
-          REGION=$(curl -sf -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" \
-            "http://169.254.169.254/latest/meta-data/placement/region")
-
           DB_SA_PASSWORD=$(aws ssm get-parameter \
             --name /library-app/db-sa-password \
             --with-decryption --query Parameter.Value --output text --region "$REGION")
@@ -176,7 +171,7 @@ jobs:
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
-            --parameters "commands=[\"echo ${DEPLOY_SCRIPT} | base64 -d | bash\"]" \
+            --parameters "commands=[\"export REGION=${REGION}; echo ${DEPLOY_SCRIPT} | base64 -d | bash\"]" \
             --region "$REGION" \
             --query "Command.CommandId" \
             --output text)
