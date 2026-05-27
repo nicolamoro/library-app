@@ -1,0 +1,29 @@
+name: GHCR Cleanup
+
+on:
+  schedule:
+    - cron: '0 23 * * 3'  # Wednesday at 23:00 UTC
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Dry run (list images that would be deleted without actually deleting them)'
+        type: boolean
+        default: false
+
+jobs:
+  cleanup:
+    name: Clean up old SHA images
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+
+    steps:
+      - uses: snok/container-retention-policy@v3
+        with:
+          account: user
+          token: ${{ secrets.GITHUB_TOKEN }}
+          image-names: library-app
+          image-tags: sha-.*
+          cut-off: 1 day ago UTC
+          keep-at-least: 2
+          dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}
