@@ -122,7 +122,7 @@ jobs:
           DEPLOY_SCRIPT=$(base64 -w 0 << 'SCRIPT_EOF'
           set -euo pipefail
 
-          REGION=$(curl -sf http://169.254.169.254/latest/meta-data/placement/region)
+          REGION="${AWS_DEFAULT_REGION}"
 
           DB_SA_PASSWORD=$(aws ssm get-parameter \
             --name /library-app/db-sa-password \
