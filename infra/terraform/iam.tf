@@ -49,7 +49,10 @@ resource "aws_iam_role_policy" "s3_db_init" {
       {
         Effect = "Allow"
         Action = ["s3:GetObject"]
-        Resource = "arn:aws:s3:::${var.backend_bucket}/db-init/*"
+        Resource = [
+          "arn:aws:s3:::${var.backend_bucket}/db-init/*",
+          "arn:aws:s3:::${var.backend_bucket}/docker-compose.prod.yml"
+        ]
       },
       {
         Effect   = "Allow"

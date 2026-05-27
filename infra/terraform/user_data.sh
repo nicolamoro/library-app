@@ -45,8 +45,8 @@ Type=oneshot
 RemainAfterExit=yes
 User=ec2-user
 WorkingDirectory=/opt/library-app
-ExecStart=/usr/local/lib/docker/cli-plugins/docker-compose up -d
-ExecStop=/usr/local/lib/docker/cli-plugins/docker-compose down
+ExecStart=/usr/local/lib/docker/cli-plugins/docker-compose -f docker-compose.prod.yml up -d
+ExecStop=/usr/local/lib/docker/cli-plugins/docker-compose -f docker-compose.prod.yml down
 TimeoutStartSec=300
 
 [Install]

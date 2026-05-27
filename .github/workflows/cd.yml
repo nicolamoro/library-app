@@ -5,6 +5,10 @@ on:
     tags:
       - "v*.*.*"
 
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
 jobs:
   # ── Promote: GHCR sha → GHCR version tags + ECR; upload assets to S3 ─────────
   promote:
@@ -21,6 +25,16 @@ jobs:
       - name: Extract version from tag
         id: tag
         run: echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate release tag
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          if ! [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+            echo "Invalid release tag: $VERSION" >&2
+            echo "Expected vMAJOR.MINOR.PATCH, optionally followed by a Docker-compatible prerelease suffix." >&2
+            exit 1
+          fi
 
       - name: Derive short SHA
         id: sha
@@ -174,19 +188,38 @@ jobs:
           COMMAND_ID: ${{ steps.ssm.outputs.command_id }}
         run: |
           echo "Waiting for SSM command to finish..."
-          aws ssm wait command-executed \
-            --command-id   "$COMMAND_ID" \
-            --instance-id  "$INSTANCE_ID" \
-            --region       "$REGION" || true
+          RESULT=""
+          STATUS="Pending"
+          STATUS_DETAILS="Pending"
 
-          RESULT=$(aws ssm get-command-invocation \
-            --command-id   "$COMMAND_ID" \
-            --instance-id  "$INSTANCE_ID" \
-            --region       "$REGION")
+          for attempt in $(seq 1 60); do
+            if RESULT=$(aws ssm get-command-invocation \
+              --command-id   "$COMMAND_ID" \
+              --instance-id  "$INSTANCE_ID" \
+              --region       "$REGION" 2>/dev/null); then
+              STATUS=$(echo "$RESULT" | jq -r '.Status')
+              STATUS_DETAILS=$(echo "$RESULT" | jq -r '.StatusDetails')
+              echo "SSM status: $STATUS_DETAILS"
 
-          STATUS=$(echo "$RESULT" | jq -r '.StatusDetails')
-          OUTPUT=$(echo "$RESULT" | jq -r '.StandardOutputContent')
-          ERROR=$(echo  "$RESULT" | jq -r '.StandardErrorContent')
+              case "$STATUS" in
+                Success|Failed|Cancelled|TimedOut|Cancelling)
+                  break
+                  ;;
+              esac
+            else
+              echo "SSM invocation is not available yet."
+            fi
+
+            if [ "$attempt" -eq 60 ]; then
+              echo "Deploy did not finish within 15 minutes. Last status: $STATUS_DETAILS" >&2
+              exit 1
+            fi
+
+            sleep 15
+          done
+
+          OUTPUT=$(echo "$RESULT" | jq -r '.StandardOutputContent // ""')
+          ERROR=$(echo  "$RESULT" | jq -r '.StandardErrorContent // ""')
 
           echo "--- stdout ---"
           echo "$OUTPUT"
@@ -196,7 +229,7 @@ jobs:
           fi
 
           if [ "$STATUS" != "Success" ]; then
-            echo "Deploy failed with status: $STATUS"
+            echo "Deploy failed with status: $STATUS_DETAILS"
             exit 1
           fi
 
