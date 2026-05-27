@@ -18,12 +18,12 @@ jobs:
       packages: write
 
     steps:
-      - uses: snok/container-retention-policy@v3
+      - uses: snok/container-retention-policy@v3.0.0
         with:
           account: user
           token: ${{ secrets.GITHUB_TOKEN }}
           image-names: library-app
           image-tags: sha-.*
           cut-off: 1 day ago UTC
-          keep-at-least: 2
+          keep-n-most-recent: 2
           dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}
