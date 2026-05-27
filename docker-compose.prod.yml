@@ -3,6 +3,8 @@ services:
     image: mcr.microsoft.com/mssql/server:2022-latest
     user: root
     entrypoint: ["/init/entrypoint.sh"]
+    mem_limit: 2g
+    memswap_limit: 4g
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_SA_PASSWORD: "${DB_SA_PASSWORD}"

@@ -21,7 +21,7 @@ chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
 # ── Swap (2 GB) ───────────────────────────────────────────────────────────────
 # SQL Server on a 1 GB instance needs swap to avoid OOM kills.
-fallocate -l 2G /swapfile
+fallocate -l 4G /swapfile
 chmod 600 /swapfile
 mkswap /swapfile
 swapon /swapfile
