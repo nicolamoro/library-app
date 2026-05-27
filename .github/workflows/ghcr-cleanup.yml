@@ -24,6 +24,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           image-names: library-app
           image-tags: sha-.*
-          cut-off: 1 day ago UTC
+          cut-off: 24h
           keep-n-most-recent: 2
           dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}
