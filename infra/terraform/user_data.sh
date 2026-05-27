@@ -8,6 +8,9 @@ dnf update -y
 dnf install -y docker
 systemctl enable --now docker
 usermod -aG docker ec2-user
+# Pre-create ssm-user so the SSM agent reuses it with the docker group already set
+useradd -m ssm-user 2>/dev/null || true
+usermod -aG docker ssm-user
 
 # ── Docker Compose v2 plugin ──────────────────────────────────────────────────
 COMPOSE_VERSION="v2.27.0"
