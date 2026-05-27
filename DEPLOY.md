@@ -31,17 +31,24 @@ AWS resources (all tagged Project=library-app):
   SSM Parameters       — /library-app/{db-sa-password, ecr-registry, s3-bucket, app-version}
 ```
 
-## GitHub secrets required
+## GitHub configuration required
+
+**Secrets** (Settings → Secrets and variables → Actions → Secrets):
 
 | Secret | When you get it | Source |
 |--------|-----------------|--------|
 | `AWS_ACCESS_KEY_ID` | Prerequisite | AWS Console → IAM → Create access key |
 | `AWS_SECRET_ACCESS_KEY` | Prerequisite | Same step |
-| `AWS_REGION` | Prerequisite | Your choice (e.g. `eu-west-1`) |
 | `DB_SA_PASSWORD` | Step 1 | Your choice — strong password |
 | `TF_BACKEND_BUCKET` | Step 2 | `infra.yml bootstrap` step summary |
 | `TF_BACKEND_TABLE` | Step 2 | `infra.yml bootstrap` step summary |
 | `EC2_INSTANCE_ID` | Step 3 | `infra.yml apply` step summary |
+
+**Variables** (Settings → Secrets and variables → Actions → Variables):
+
+| Variable | When you get it | Source |
+|----------|-----------------|--------|
+| `AWS_REGION` | Prerequisite | Your choice (e.g. `eu-west-1`) |
 
 ## First-time setup
 
@@ -62,7 +69,7 @@ aws iam create-access-key --user-name library-app-deploy
 # Save AccessKeyId and SecretAccessKey immediately
 ```
 
-Save as GitHub secrets: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`.
+Save `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` as GitHub **secrets**, and `AWS_REGION` as a GitHub **variable** (it isn't sensitive and being unmasked makes log debugging easier).
 
 ---
 
