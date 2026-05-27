@@ -30,7 +30,7 @@ jobs:
       AWS_REGION: ${{ vars.AWS_REGION }}
     steps:
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -100,7 +100,7 @@ jobs:
     if: inputs.action == 'apply'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/tf-setup
         with:
@@ -164,7 +164,7 @@ jobs:
     if: inputs.action == 'destroy'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/tf-setup
         with:
