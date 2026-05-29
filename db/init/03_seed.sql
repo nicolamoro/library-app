@@ -1,12 +1,6 @@
 -- ============================================================
--- Library Management System — Seed Data
+-- Library Management System — Seed Data (PostgreSQL)
 -- ============================================================
-
-USE LibraryDB;
-GO
-
-SET QUOTED_IDENTIFIER ON;
-GO
 
 -- genres
 INSERT INTO genres (name, description) VALUES
@@ -16,7 +10,6 @@ INSERT INTO genres (name, description) VALUES
     ('Historical Fiction', 'Romanzi ambientati in epoche storiche reali'),
     ('Contemporary Fiction','Narrativa letteraria ambientata nel mondo contemporaneo'),
     ('Thriller',           'Narrativa ad alta tensione con colpi di scena');
-GO
 
 -- publishers
 INSERT INTO publishers (name, address, email, website) VALUES
@@ -24,7 +17,6 @@ INSERT INTO publishers (name, address, email, website) VALUES
     ('Einaudi',     'Via Umberto Biancamano 2, Torino','info@einaudi.it',   'www.einaudi.it'),
     ('Mondadori',   'Via Mondadori 1, Segrate',      'info@mondadori.it',   'www.mondadori.it'),
     ('Bloomsbury',  '50 Bedford Square, London',     'info@bloomsbury.com', 'www.bloomsbury.com');
-GO
 
 -- authors
 INSERT INTO authors (first_name, last_name, birth_date, nationality, biography) VALUES
@@ -34,7 +26,6 @@ INSERT INTO authors (first_name, last_name, birth_date, nationality, biography) 
     ('George',  'Orwell',  '1903-06-25', 'Britannica', 'Scrittore e giornalista britannico, autore di "1984" e "Animal Farm".'),
     ('Stephen', 'King',    '1947-09-21', 'Americana',  'Maestro del genere horror, autore prolifico con oltre 60 romanzi.'),
     ('J.K.',    'Rowling', '1965-07-31', 'Britannica', 'Autrice della saga di Harry Potter, una delle più vendute al mondo.');
-GO
 
 -- books
 -- available_copies reflects the active/overdue loans inserted below
@@ -47,7 +38,6 @@ INSERT INTO books (isbn, title, publisher_id, genre_id, publication_year, langua
     ('978-8804521018', 'It',                                      3, 2, 1986, 'Italiano', 1216, 2, 2),
     ('978-8804523369', 'The Shining',                             3, 2, 1977, 'Italiano', 432, 2, 1),  -- 1 copy on overdue loan
     ('978-0747532699', 'Harry Potter e la Pietra Filosofale',     4, 1, 1997, 'Italiano', 309, 5, 4); -- 1 copy on active loan
-GO
 
 -- book_authors
 INSERT INTO book_authors (book_id, author_id) VALUES
@@ -59,7 +49,6 @@ INSERT INTO book_authors (book_id, author_id) VALUES
     (6, 5),  -- It → King
     (7, 5),  -- The Shining → King
     (8, 6);  -- Harry Potter → Rowling
-GO
 
 -- users — password "user123"
 INSERT INTO users (first_name, last_name, birth_date, tax_code, address, phone, email, registration_date, status, password_hash) VALUES
@@ -68,11 +57,9 @@ INSERT INTO users (first_name, last_name, birth_date, tax_code, address, phone, 
     ('Francesco', 'Conti',   '1978-11-03', 'CNTFNC78S03L219W', 'Via Garibaldi 33, Bologna', '3381122334', 'f.conti@email.it',        '2024-02-10', 'active',    '$2a$12$vfhLGjT3/IzLIYn6O/w8Wu..bkp3qQj5vAfaXbgp3P90kTWk7gz6a'),
     ('Giulia',    'Marino',  '1990-05-17', 'MRNGLU90E57F839P', 'Piazza Dante 7, Napoli',    '3204455667', 'giulia.marino@email.it',  '2024-06-01', 'active',    '$2a$12$vfhLGjT3/IzLIYn6O/w8Wu..bkp3qQj5vAfaXbgp3P90kTWk7gz6a'),
     ('Antonio',   'De Luca', '1965-09-30', 'DLCNTN65P30H501B', 'Via Nazionale 88, Roma',    '3667788990', 'antonio.deluca@email.it', '2022-11-05', 'suspended', '$2a$12$vfhLGjT3/IzLIYn6O/w8Wu..bkp3qQj5vAfaXbgp3P90kTWk7gz6a');
-GO
 
 INSERT INTO users (first_name, last_name, email, password_hash, is_admin, registration_date, status)
-VALUES ('Admin', 'Admin', 'admin@email.it', '$2a$12$jUdgyLqapIXlfh7J0zZKA.04tWFuKPiRp5uZE0APZm0/alOUk2ZgC', 1, CAST(GETDATE() AS DATE), 'active');
-GO
+VALUES ('Admin', 'Admin', 'admin@email.it', '$2a$12$jUdgyLqapIXlfh7J0zZKA.04tWFuKPiRp5uZE0APZm0/alOUk2ZgC', TRUE, CURRENT_DATE, 'active');
 
 -- loans
 -- Loan 1: Mario Rossi — Il Nome della Rosa — ACTIVE (borrowed 27 days ago, due in 3 days)
@@ -82,10 +69,9 @@ GO
 -- Loan 5: Giulia Marino — L'Amica Geniale — RETURNED (returned 4 days before due date)
 -- Loan 6: Lucia Bianchi — La Fattoria degli Animali — RETURNED (returned 2 days before due date)
 INSERT INTO loans (user_id, book_id, loan_date, due_date, return_date, status, daily_fine_rate, fine_amount, fine_paid) VALUES
-    (1, 1, DATEADD(DAY,  -27, CAST(GETDATE() AS DATE)), DATEADD(DAY,   3, CAST(GETDATE() AS DATE)), NULL,                                        'active',   0.50, NULL, 0),
-    (2, 4, DATEADD(DAY,  -77, CAST(GETDATE() AS DATE)), DATEADD(DAY, -47, CAST(GETDATE() AS DATE)), DATEADD(DAY, -50, CAST(GETDATE() AS DATE)), 'returned', 0.50, NULL, 0),
-    (3, 8, DATEADD(DAY,  -16, CAST(GETDATE() AS DATE)), DATEADD(DAY,  14, CAST(GETDATE() AS DATE)), NULL,                                        'active',   0.50, NULL, 0),
-    (1, 7, DATEADD(DAY,  -68, CAST(GETDATE() AS DATE)), DATEADD(DAY, -37, CAST(GETDATE() AS DATE)), NULL,                                        'overdue',  0.50, NULL, 0),
-    (4, 3, DATEADD(DAY, -105, CAST(GETDATE() AS DATE)), DATEADD(DAY, -77, CAST(GETDATE() AS DATE)), DATEADD(DAY, -81, CAST(GETDATE() AS DATE)), 'returned', 0.50, NULL, 0),
-    (2, 5, DATEADD(DAY, -127, CAST(GETDATE() AS DATE)), DATEADD(DAY, -96, CAST(GETDATE() AS DATE)), DATEADD(DAY, -98, CAST(GETDATE() AS DATE)), 'returned', 0.50, NULL, 0);
-GO
+    (1, 1, CURRENT_DATE - INTERVAL  '27 days', CURRENT_DATE + INTERVAL  '3 days', NULL,                              'active',   0.50, NULL, FALSE),
+    (2, 4, CURRENT_DATE - INTERVAL  '77 days', CURRENT_DATE - INTERVAL '47 days', CURRENT_DATE - INTERVAL '50 days', 'returned', 0.50, NULL, FALSE),
+    (3, 8, CURRENT_DATE - INTERVAL  '16 days', CURRENT_DATE + INTERVAL '14 days', NULL,                              'active',   0.50, NULL, FALSE),
+    (1, 7, CURRENT_DATE - INTERVAL  '68 days', CURRENT_DATE - INTERVAL '37 days', NULL,                              'overdue',  0.50, NULL, FALSE),
+    (4, 3, CURRENT_DATE - INTERVAL '105 days', CURRENT_DATE - INTERVAL '77 days', CURRENT_DATE - INTERVAL '81 days', 'returned', 0.50, NULL, FALSE),
+    (2, 5, CURRENT_DATE - INTERVAL '127 days', CURRENT_DATE - INTERVAL '96 days', CURRENT_DATE - INTERVAL '98 days', 'returned', 0.50, NULL, FALSE);

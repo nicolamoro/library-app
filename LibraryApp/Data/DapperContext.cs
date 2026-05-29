@@ -1,4 +1,4 @@
-using Microsoft.Data.SqlClient;
+using Npgsql;
 
 namespace LibraryApp.Data;
 
@@ -9,5 +9,5 @@ public class DapperContext
     public DapperContext(IConfiguration configuration)
         => _connectionString = configuration.GetConnectionString("LibraryDb")!;
 
-    public SqlConnection CreateConnection() => new(_connectionString);
+    public NpgsqlConnection CreateConnection() => new(_connectionString);
 }

@@ -15,16 +15,16 @@ docker compose up --build
 ```
 
 Docker handles everything:
-1. Builds the SQL Server image with the init scripts
-2. Starts the `db` container, automatically runs `01_schema.sql`, `02_procedures.sql`, `03_seed.sql`
+1. Pulls the `postgres:16-alpine` image and mounts `db/init/` into `/docker-entrypoint-initdb.d`
+2. Starts the `db` container, which on first init automatically runs `01_schema.sql`, `02_procedures.sql`, `03_seed.sql`
 3. Waits for the database to be ready (healthcheck)
 4. Builds and starts the `app` container (Blazor Server)
 
 The app is available at **http://localhost:8080**.
 
-First start takes ~2-3 minutes for image downloads. Subsequent starts are much faster.
+First start takes ~1-2 minutes for image downloads. Subsequent starts are much faster.
 
-> **Note:** database data persists in a Docker volume (`sqlserver-data`). Deleting the volume resets everything back to the seed data.
+> **Note:** database data persists in a Docker volume (`postgres-data`). The init scripts run **only when the volume is empty**, so to re-seed you must delete the volume (`docker compose down -v`).
 
 ## Stopping the stack
 
@@ -35,7 +35,7 @@ docker compose down -v     # stops containers and deletes the volume (data lost)
 
 ## Rebuilding after changes
 
-If you only changed Blazor code (no changes to SQL scripts or the db Dockerfile):
+If you only changed Blazor code (no changes to SQL scripts):
 
 ```sh
 docker compose up --build -d app
@@ -51,23 +51,27 @@ docker compose up --build
 
 ## Direct database connection
 
-Use **Azure Data Studio** or **DBeaver** with the following parameters while the stack is running:
+Use **DBeaver**, **pgAdmin**, or the `psql` CLI with the following parameters while the stack is running:
 
 | Parameter | Value |
 |---|---|
 | Host | `localhost` |
-| Port | `1433` |
-| User | `sa` |
+| Port | `5432` |
+| User | `postgres` |
 | Password | `StrongPass123!` |
-| Database | `LibraryDB` |
+| Database | `librarydb` |
+
+```sh
+docker exec -it $(docker compose ps -q db) psql -U postgres -d librarydb
+```
 
 ## Container structure
 
 | Container | Base image | Exposed port |
 |---|---|---|
-| `library-app-db-1` | SQL Server 2022 | 1433 |
+| `library-app-db-1` | PostgreSQL 16 (alpine) | 5432 |
 | `library-app-app-1` | .NET 10 ASP.NET Core | 8080 |
 
 ## Healthcheck
 
-The `app` container depends on `db` via `condition: service_healthy`. The healthcheck runs a T-SQL query every 10 seconds to verify that the `LibraryDB` database exists; only once it passes does Docker start the app. If the database is slow to start, increase `retries` in `docker-compose.yml`.
+The `app` container depends on `db` via `condition: service_healthy`. The healthcheck runs `pg_isready` every 10 seconds to verify that PostgreSQL is accepting connections; only once it passes does Docker start the app. If the database is slow to start, increase `retries` in `docker-compose.yml`.

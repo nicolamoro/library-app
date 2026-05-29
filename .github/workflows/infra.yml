@@ -127,7 +127,7 @@ jobs:
 
       - name: Store secrets in SSM Parameter Store
         env:
-          DB_SA_PASSWORD: ${{ secrets.DB_SA_PASSWORD }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           ECR_REGISTRY: ${{ steps.tf.outputs.ecr_registry }}
           S3_BUCKET: ${{ secrets.TF_BACKEND_BUCKET }}
         run: |
@@ -139,7 +139,7 @@ jobs:
               --resource-type Parameter --resource-id "$name" \
               --tags Key=Project,Value=library-app
           }
-          put_param /library-app/db-sa-password "$DB_SA_PASSWORD" SecureString
+          put_param /library-app/db-password "$DB_PASSWORD" SecureString
           put_param /library-app/ecr-registry   "$ECR_REGISTRY"   String
           put_param /library-app/s3-bucket      "$S3_BUCKET"      String
 
@@ -184,7 +184,7 @@ jobs:
       - name: Delete SSM parameters
         run: |
           for param in \
-            /library-app/db-sa-password \
+            /library-app/db-password \
             /library-app/ecr-registry \
             /library-app/s3-bucket \
             /library-app/app-version; do

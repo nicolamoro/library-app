@@ -5,8 +5,8 @@ using LibraryApp.Tests.Integration.Fixtures;
 namespace LibraryApp.Tests.Integration;
 
 [Trait("Category", "Integration")]
-[Collection("SqlServer")]
-public class UserRepositoryTests(SqlServerFixture fixture)
+[Collection("Postgres")]
+public class UserRepositoryTests(PostgresFixture fixture)
 {
     private readonly UserRepository _repo = new(fixture.DapperContext);
 

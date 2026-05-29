@@ -7,8 +7,8 @@ Web application for managing a library: book catalogue, user registry, and loan 
 | Layer | Technology |
 |---|---|
 | Frontend | Blazor Server (.NET 10), MudBlazor 9.4.0 |
-| Backend | ASP.NET Core 10, Dapper 2.1 |
-| Database | SQL Server 2022 |
+| Backend | ASP.NET Core 10, Dapper 2.1, Npgsql |
+| Database | PostgreSQL 16 |
 | Deploy | Docker Compose |
 
 ## Features
@@ -31,11 +31,9 @@ Web application for managing a library: book catalogue, user registry, and loan 
 ```
 docker-compose.yml              — starts the full stack with a single command
 db/
-  Dockerfile                    — SQL Server image with automatic init
-  entrypoint.sh                 — startup and database initialisation script
-  init/
-    01_schema.sql               — DDL: database and table creation
-    02_procedures.sql           — borrow/return stored procedures
+  init/                         — run by the postgres image on first start (/docker-entrypoint-initdb.d)
+    01_schema.sql               — DDL: table creation
+    02_procedures.sql           — borrow/return PL/pgSQL functions
     03_seed.sql                 — sample data
   seed_volume.sql               — optional high-volume seed (stress test)
 LibraryApp/
@@ -69,7 +67,7 @@ LibraryApp/
       MyLoans.razor             — user's own loan history
       UserProfile.razor         — self-service profile editing (all authenticated users)
   Data/
-    DapperContext.cs            — SQL Server connection factory
+    DapperContext.cs            — PostgreSQL (Npgsql) connection factory
     BookRepository.cs           — book CRUD + author/genre/publisher lookups for dropdowns
     AuthorRepository.cs         — author CRUD
     GenreRepository.cs          — genre CRUD
@@ -93,11 +91,11 @@ Browser ──WebSocket──► Blazor Server Circuit
                               │
                     Repository (Dapper)
                               │
-                         SQL Server
-                    (stored procedures)
+                        PostgreSQL
+                    (PL/pgSQL functions)
 ```
 
-Blazor components communicate with SQL Server through Dapper repositories. The pattern is direct (no intermediate service layer): components inject the repository, call `async` methods, and update local state with `StateHasChanged()` where needed.
+Blazor components communicate with PostgreSQL through Dapper repositories. The pattern is direct (no intermediate service layer): components inject the repository, call `async` methods, and update local state with `StateHasChanged()` where needed.
 
 Dark mode is managed entirely client-side: `MudThemeProvider` with `@bind-IsDarkMode` updates MudBlazor CSS variables; `localStorage` persists the preference across sessions via JS interop.
 
@@ -121,42 +119,42 @@ users ────── loans ──────────────┘
 ### genres
 | Column | Type | Notes |
 |---|---|---|
-| `genre_id` | INT IDENTITY | PK |
-| `name` | NVARCHAR(100) | NOT NULL, UNIQUE |
-| `description` | NVARCHAR(500) | optional |
+| `genre_id` | INT GENERATED ALWAYS AS IDENTITY | PK |
+| `name` | VARCHAR(100) | NOT NULL, UNIQUE |
+| `description` | VARCHAR(500) | optional |
 
 ### publishers
 | Column | Type | Notes |
 |---|---|---|
-| `publisher_id` | INT IDENTITY | PK |
-| `name` | NVARCHAR(200) | NOT NULL |
-| `address` | NVARCHAR(300) | |
-| `phone` | NVARCHAR(20) | |
-| `email` | NVARCHAR(150) | |
-| `website` | NVARCHAR(200) | |
+| `publisher_id` | INT GENERATED ALWAYS AS IDENTITY | PK |
+| `name` | VARCHAR(200) | NOT NULL |
+| `address` | VARCHAR(300) | |
+| `phone` | VARCHAR(20) | |
+| `email` | VARCHAR(150) | |
+| `website` | VARCHAR(200) | |
 
 ### authors
 | Column | Type | Notes |
 |---|---|---|
-| `author_id` | INT IDENTITY | PK |
-| `first_name` | NVARCHAR(100) | NOT NULL |
-| `last_name` | NVARCHAR(100) | NOT NULL |
+| `author_id` | INT GENERATED ALWAYS AS IDENTITY | PK |
+| `first_name` | VARCHAR(100) | NOT NULL |
+| `last_name` | VARCHAR(100) | NOT NULL |
 | `birth_date` | DATE | |
-| `nationality` | NVARCHAR(100) | |
-| `biography` | NVARCHAR(MAX) | |
+| `nationality` | VARCHAR(100) | |
+| `biography` | TEXT | |
 
 ### books
 Book catalogue. `total_copies` / `available_copies` track physical copies.
 
 | Column | Type | Notes |
 |---|---|---|
-| `book_id` | INT IDENTITY | PK |
-| `isbn` | NVARCHAR(20) | UNIQUE |
-| `title` | NVARCHAR(300) | NOT NULL |
+| `book_id` | INT GENERATED ALWAYS AS IDENTITY | PK |
+| `isbn` | VARCHAR(20) | UNIQUE |
+| `title` | VARCHAR(300) | NOT NULL |
 | `publisher_id` | INT | FK → publishers |
 | `genre_id` | INT | FK → genres |
 | `publication_year` | SMALLINT | |
-| `language` | NVARCHAR(50) | |
+| `language` | VARCHAR(50) | |
 | `page_count` | SMALLINT | |
 | `total_copies` | SMALLINT | NOT NULL, DEFAULT 1 |
 | `available_copies` | SMALLINT | NOT NULL, DEFAULT 1 |
@@ -174,72 +172,72 @@ N:N relationship between `books` and `authors`.
 ### users
 | Column | Type | Notes |
 |---|---|---|
-| `user_id` | INT IDENTITY | PK |
-| `first_name` | NVARCHAR(100) | NOT NULL |
-| `last_name` | NVARCHAR(100) | NOT NULL |
+| `user_id` | INT GENERATED ALWAYS AS IDENTITY | PK |
+| `first_name` | VARCHAR(100) | NOT NULL |
+| `last_name` | VARCHAR(100) | NOT NULL |
 | `birth_date` | DATE | |
-| `tax_code` | NVARCHAR(20) | UNIQUE |
-| `address` | NVARCHAR(300) | |
-| `phone` | NVARCHAR(20) | |
-| `email` | NVARCHAR(150) | NOT NULL, UNIQUE — used as login identifier |
-| `registration_date` | DATE | NOT NULL, DEFAULT GETDATE() |
-| `status` | NVARCHAR(20) | `active` \| `suspended`, DEFAULT `active` |
-| `password_hash` | NVARCHAR(100) | BCrypt work factor 12 |
-| `is_admin` | BIT | NOT NULL, DEFAULT 0 |
-| `last_login` | DATETIME2 | updated on each login |
+| `tax_code` | VARCHAR(20) | UNIQUE |
+| `address` | VARCHAR(300) | |
+| `phone` | VARCHAR(20) | |
+| `email` | VARCHAR(150) | NOT NULL, UNIQUE — used as login identifier |
+| `registration_date` | DATE | NOT NULL, DEFAULT CURRENT_DATE |
+| `status` | VARCHAR(20) | `active` \| `suspended`, DEFAULT `active` |
+| `password_hash` | VARCHAR(100) | BCrypt work factor 12 |
+| `is_admin` | BOOLEAN | NOT NULL, DEFAULT FALSE |
+| `last_login` | TIMESTAMP | updated on each login |
 
 ### loans
 | Column | Type | Notes |
 |---|---|---|
-| `loan_id` | INT IDENTITY | PK |
+| `loan_id` | INT GENERATED ALWAYS AS IDENTITY | PK |
 | `user_id` | INT | FK → users |
 | `book_id` | INT | FK → books |
-| `loan_date` | DATE | NOT NULL, DEFAULT GETDATE() |
+| `loan_date` | DATE | NOT NULL, DEFAULT CURRENT_DATE |
 | `due_date` | DATE | NOT NULL, must be > `loan_date` |
 | `return_date` | DATE | NULL while the loan is still open |
-| `status` | NVARCHAR(20) | `active` \| `returned` \| `overdue`, DEFAULT `active` |
-| `daily_fine_rate` | DECIMAL(5,2) | daily fine rate, DEFAULT 0.50 |
-| `fine_amount` | DECIMAL(8,2) | NULL until calculated |
-| `fine_paid` | BIT | 0 = unpaid, 1 = paid, DEFAULT 0 |
+| `status` | VARCHAR(20) | `active` \| `returned` \| `overdue`, DEFAULT `active` |
+| `daily_fine_rate` | NUMERIC(5,2) | daily fine rate, DEFAULT 0.50 |
+| `fine_amount` | NUMERIC(8,2) | NULL until calculated |
+| `fine_paid` | BOOLEAN | FALSE = unpaid, TRUE = paid, DEFAULT FALSE |
 
 Constraints: `due_date > loan_date`; `return_date ≥ loan_date` if set.
 
 ---
 
-## Stored Procedures
+## Database functions (PL/pgSQL)
 
 ### sp_borrow_book — Records a new loan
 
 ```sql
-EXEC sp_borrow_book
-    @user_id         = 1,    -- user ID
-    @book_id         = 3,    -- book ID
-    @loan_days       = 30,   -- loan duration in days (default 30)
-    @daily_fine_rate = 0.50  -- daily fine rate (default 0.50)
+SELECT * FROM sp_borrow_book(
+    1,     -- user ID
+    3,     -- book ID
+    30,    -- loan duration in days (default 30)
+    0.50   -- daily fine rate (default 0.50)
+);
 ```
 
-Verifies that the user is `active` and that available copies exist, inserts the record into `loans`, and decrements `available_copies`.
+Verifies that the user is `active` and that available copies exist, inserts the record into `loans`, and decrements `available_copies`. On failure it raises an exception whose message is surfaced to the UI:
 
-| Error | Message |
-|---|---|
-| 50001 | `User not found.` |
-| 50002 | `User account is suspended.` |
-| 50003 | `Book not found.` |
-| 50004 | `No copies available for this book.` |
+| Raised message |
+|---|
+| `User not found.` |
+| `User account is suspended.` |
+| `Book not found.` |
+| `No copies available for this book.` |
 
 ### sp_return_book — Records a return
 
 ```sql
-EXEC sp_return_book
-    @loan_id = 7   -- ID of the loan to close
+SELECT * FROM sp_return_book(7);   -- ID of the loan to close
 ```
 
 Sets `return_date` to today, changes `status` to `returned`, calculates `fine_amount` if overdue, and increments `available_copies`.
 
-| Error | Message |
-|---|---|
-| 50010 | `Loan not found.` |
-| 50011 | `This loan has already been returned.` |
+| Raised message |
+|---|
+| `Loan not found.` |
+| `This loan has already been returned.` |
 
 ---
 
@@ -248,7 +246,7 @@ Sets `return_date` to today, changes `status` to `returned`, calculates `fine_am
 ### Running the tests
 
 ```sh
-# All tests (Docker required for integration tests — Testcontainers pulls SQL Server automatically)
+# All tests (Docker required for integration tests — Testcontainers pulls PostgreSQL automatically)
 dotnet test LibraryApp.Tests/
 
 # Unit tests only (no Docker required)
@@ -269,7 +267,7 @@ dotnet test LibraryApp.Tests/ --filter "Category=Component"
 | `Integration/` | Repository integration tests | xUnit + Testcontainers |
 | `Component/` | Blazor component tests | bUnit + NSubstitute |
 
-Integration tests start an ephemeral SQL Server container via **Testcontainers**: no manual setup required, but Docker must be running. The container is shared within a test run and torn down automatically.
+Integration tests start an ephemeral PostgreSQL container via **Testcontainers**: no manual setup required, but Docker must be running. The container is shared within a test run and torn down automatically.
 
 ---
 
@@ -284,9 +282,13 @@ The app is available at **http://localhost:8080**. See [LOCAL_DEPLOY.md](LOCAL_D
 ## Running SQL scripts manually
 
 ```sh
-sqlcmd -S localhost -U sa -P "StrongPass123!" -No -i db/init/01_schema.sql
-sqlcmd -S localhost -U sa -P "StrongPass123!" -No -d LibraryDB -i db/init/02_procedures.sql
-sqlcmd -S localhost -U sa -P "StrongPass123!" -No -d LibraryDB -i db/init/03_seed.sql
+# Against the running container (psql is bundled in the postgres image)
+docker exec -i $(docker compose ps -q db) psql -U postgres -d librarydb < db/init/01_schema.sql
+docker exec -i $(docker compose ps -q db) psql -U postgres -d librarydb < db/init/02_procedures.sql
+docker exec -i $(docker compose ps -q db) psql -U postgres -d librarydb < db/init/03_seed.sql
+
+# Or with psql installed locally
+psql "host=localhost port=5432 dbname=librarydb user=postgres password=StrongPass123!" -f db/init/01_schema.sql
 ```
 
 ### Volume seed (stress test)
@@ -306,12 +308,10 @@ Run **after** the base seed, on demand:
 
 ```sh
 # Via Docker (DB container must be running)
-docker exec -i $(docker compose ps -q db) \
-  /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "StrongPass123!" -C \
-  -i /dev/stdin < db/seed_volume.sql
+docker exec -i $(docker compose ps -q db) psql -U postgres -d librarydb < db/seed_volume.sql
 
-# Or with sqlcmd installed locally
-sqlcmd -S localhost -U sa -P "StrongPass123!" -No -d LibraryDB -i db/seed_volume.sql
+# Or with psql installed locally
+psql "host=localhost port=5432 dbname=librarydb user=postgres password=StrongPass123!" -f db/seed_volume.sql
 ```
 
 The script is **not idempotent**: running it a second time raises an error and exits without changes (guard on `isbn LIKE 'VOL%'`). To start from scratch: `docker compose down -v && docker compose up --build`.
@@ -329,23 +329,23 @@ WHERE available_copies > 0;
 ```sql
 SELECT
     l.loan_id,
-    u.first_name + ' ' + u.last_name AS user_full_name,
+    u.first_name || ' ' || u.last_name AS user_full_name,
     b.title,
     l.due_date,
-    DATEDIFF(DAY, l.due_date, CAST(GETDATE() AS DATE)) AS days_overdue,
-    DATEDIFF(DAY, l.due_date, CAST(GETDATE() AS DATE)) * l.daily_fine_rate AS calculated_fine
+    (CURRENT_DATE - l.due_date) AS days_overdue,
+    (CURRENT_DATE - l.due_date) * l.daily_fine_rate AS calculated_fine
 FROM loans l
 JOIN users u ON u.user_id = l.user_id
 JOIN books b ON b.book_id = l.book_id
 WHERE l.status = 'overdue'
-   OR (l.status = 'active' AND l.due_date < CAST(GETDATE() AS DATE));
+   OR (l.status = 'active' AND l.due_date < CURRENT_DATE);
 ```
 
 **All books with their authors:**
 ```sql
 SELECT
     b.title,
-    STRING_AGG(a.first_name + ' ' + a.last_name, ', ') AS authors
+    STRING_AGG(a.first_name || ' ' || a.last_name, ', ') AS authors
 FROM books b
 JOIN book_authors ba ON ba.book_id   = b.book_id
 JOIN authors      a  ON a.author_id  = ba.author_id

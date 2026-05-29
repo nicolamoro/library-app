@@ -27,7 +27,7 @@ public class UserRepository(DapperContext ctx) : IUserRepository
     {
         using var conn = ctx.CreateConnection();
         await conn.ExecuteAsync(
-            "UPDATE users SET last_login = SYSUTCDATETIME() WHERE user_id = @userId",
+            "UPDATE users SET last_login = (NOW() AT TIME ZONE 'UTC') WHERE user_id = @userId",
             new { userId });
     }
 
@@ -58,23 +58,23 @@ public class UserRepository(DapperContext ctx) : IUserRepository
         var orderBy = string.Join(", ", col.Split(',').Select(c => $"{c.Trim()} {dir}"));
         var param = new
         {
-            Search = string.IsNullOrWhiteSpace(search) ? null : search,
+            Search = string.IsNullOrWhiteSpace(search) ? "" : search,
             Offset = offset,
             PageSize = pageSize
         };
 
         const string where = """
-            WHERE @Search IS NULL
-               OR first_name + ' ' + last_name  LIKE '%' + @Search + '%'
-               OR last_name  + ' ' + first_name  LIKE '%' + @Search + '%'
-               OR email                          LIKE '%' + @Search + '%'
+            WHERE @Search = ''
+               OR first_name || ' ' || last_name  ILIKE '%' || @Search || '%'
+               OR last_name  || ' ' || first_name  ILIKE '%' || @Search || '%'
+               OR email                            ILIKE '%' || @Search || '%'
             """;
 
         var sql = $"""
             SELECT COUNT(*) FROM users {where};
             SELECT {SelectCols} FROM users {where}
             ORDER BY {orderBy}
-            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+            OFFSET @Offset LIMIT @PageSize;
             """;
 
         using var conn = ctx.CreateConnection();
@@ -100,8 +100,8 @@ public class UserRepository(DapperContext ctx) : IUserRepository
                  password_hash, is_admin)
             VALUES
                 (@FirstName, @LastName, @BirthDate, @TaxCode, @Address, @Phone, @Email, @Status,
-                 @Hash, @IsAdmin);
-            SELECT CAST(SCOPE_IDENTITY() AS INT);
+                 @Hash, @IsAdmin)
+            RETURNING user_id;
             """;
         using var conn = ctx.CreateConnection();
         return await conn.ExecuteScalarAsync<int>(sql,

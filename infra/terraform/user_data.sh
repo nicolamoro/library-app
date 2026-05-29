@@ -20,8 +20,9 @@ curl -SL "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}
 chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
 # ── Swap (2 GB) ───────────────────────────────────────────────────────────────
-# SQL Server on a 1 GB instance needs swap to avoid OOM kills.
-fallocate -l 4G /swapfile
+# PostgreSQL is light, but a small swap gives the Docker build/pull and the
+# app + DB containers headroom on a 1 GB instance to avoid OOM kills.
+fallocate -l 2G /swapfile
 chmod 600 /swapfile
 mkswap /swapfile
 swapon /swapfile

@@ -1,55 +1,49 @@
 -- ============================================================
--- Library Management System — SQL Server DDL
+-- Library Management System — PostgreSQL DDL
 -- ============================================================
-
-CREATE DATABASE LibraryDB;
-GO
-
-USE LibraryDB;
-GO
-
-SET QUOTED_IDENTIFIER ON;
-GO
+-- Runs inside the database created from POSTGRES_DB (the postgres
+-- image executes this file via /docker-entrypoint-initdb.d on first
+-- init). No CREATE DATABASE / USE needed.
 
 CREATE TABLE genres (
-    genre_id    INT           IDENTITY(1,1) NOT NULL,
-    name        NVARCHAR(100) NOT NULL,
-    description NVARCHAR(500) NULL,
+    genre_id    INT           GENERATED ALWAYS AS IDENTITY,
+    name        VARCHAR(100)  NOT NULL,
+    description VARCHAR(500)  NULL,
     CONSTRAINT PK_genres      PRIMARY KEY (genre_id),
     CONSTRAINT UQ_genres_name UNIQUE      (name)
 );
 
 CREATE TABLE publishers (
-    publisher_id INT           IDENTITY(1,1) NOT NULL,
-    name         NVARCHAR(200) NOT NULL,
-    address      NVARCHAR(300) NULL,
-    phone        NVARCHAR(20)  NULL,
-    email        NVARCHAR(150) NULL,
-    website      NVARCHAR(200) NULL,
+    publisher_id INT           GENERATED ALWAYS AS IDENTITY,
+    name         VARCHAR(200)  NOT NULL,
+    address      VARCHAR(300)  NULL,
+    phone        VARCHAR(20)   NULL,
+    email        VARCHAR(150)  NULL,
+    website      VARCHAR(200)  NULL,
     CONSTRAINT PK_publishers PRIMARY KEY (publisher_id)
 );
 
 CREATE TABLE authors (
-    author_id   INT            IDENTITY(1,1) NOT NULL,
-    first_name  NVARCHAR(100)  NOT NULL,
-    last_name   NVARCHAR(100)  NOT NULL,
+    author_id   INT            GENERATED ALWAYS AS IDENTITY,
+    first_name  VARCHAR(100)   NOT NULL,
+    last_name   VARCHAR(100)   NOT NULL,
     birth_date  DATE           NULL,
-    nationality NVARCHAR(100)  NULL,
-    biography   NVARCHAR(MAX)  NULL,
+    nationality VARCHAR(100)   NULL,
+    biography   TEXT           NULL,
     CONSTRAINT PK_authors PRIMARY KEY (author_id)
 );
 
 CREATE TABLE books (
-    book_id          INT           IDENTITY(1,1) NOT NULL,
-    isbn             NVARCHAR(20)  NULL,
-    title            NVARCHAR(300) NOT NULL,
-    publisher_id     INT           NULL,
-    genre_id         INT           NULL,
-    publication_year SMALLINT      NULL,
-    language         NVARCHAR(50)  NULL,
-    page_count       SMALLINT      NULL,
-    total_copies     SMALLINT      NOT NULL CONSTRAINT DF_books_total_copies     DEFAULT 1,
-    available_copies SMALLINT      NOT NULL CONSTRAINT DF_books_available_copies DEFAULT 1,
+    book_id          INT          GENERATED ALWAYS AS IDENTITY,
+    isbn             VARCHAR(20)  NULL,
+    title            VARCHAR(300) NOT NULL,
+    publisher_id     INT          NULL,
+    genre_id         INT          NULL,
+    publication_year SMALLINT     NULL,
+    language         VARCHAR(50)  NULL,
+    page_count       SMALLINT     NULL,
+    total_copies     SMALLINT     NOT NULL DEFAULT 1,
+    available_copies SMALLINT     NOT NULL DEFAULT 1,
     CONSTRAINT PK_books                 PRIMARY KEY (book_id),
     CONSTRAINT UQ_books_isbn            UNIQUE      (isbn),
     CONSTRAINT FK_books_publisher       FOREIGN KEY (publisher_id) REFERENCES publishers (publisher_id),
@@ -67,19 +61,19 @@ CREATE TABLE book_authors (
 );
 
 CREATE TABLE users (
-    user_id           INT           IDENTITY(1,1) NOT NULL,
-    first_name        NVARCHAR(100) NOT NULL,
-    last_name         NVARCHAR(100) NOT NULL,
-    birth_date        DATE          NULL,
-    tax_code          NVARCHAR(20)  NULL,
-    address           NVARCHAR(300) NULL,
-    phone             NVARCHAR(20)  NULL,
-    email             NVARCHAR(150) NOT NULL,
-    registration_date DATE          NOT NULL CONSTRAINT DF_users_registration_date DEFAULT CAST(GETDATE() AS DATE),
-    status            NVARCHAR(20)  NOT NULL CONSTRAINT DF_users_status            DEFAULT 'active',
-    password_hash     NVARCHAR(100) NULL,
-    is_admin          BIT           NOT NULL CONSTRAINT DF_users_is_admin          DEFAULT 0,
-    last_login        DATETIME2     NULL,
+    user_id           INT          GENERATED ALWAYS AS IDENTITY,
+    first_name        VARCHAR(100) NOT NULL,
+    last_name         VARCHAR(100) NOT NULL,
+    birth_date        DATE         NULL,
+    tax_code          VARCHAR(20)  NULL,
+    address           VARCHAR(300) NULL,
+    phone             VARCHAR(20)  NULL,
+    email             VARCHAR(150) NOT NULL,
+    registration_date DATE         NOT NULL DEFAULT CURRENT_DATE,
+    status            VARCHAR(20)  NOT NULL DEFAULT 'active',
+    password_hash     VARCHAR(100) NULL,
+    is_admin          BOOLEAN      NOT NULL DEFAULT FALSE,
+    last_login        TIMESTAMP    NULL,
     CONSTRAINT PK_users          PRIMARY KEY (user_id),
     CONSTRAINT UQ_users_email    UNIQUE      (email),
     CONSTRAINT UQ_users_taxcode  UNIQUE      (tax_code),
@@ -87,16 +81,16 @@ CREATE TABLE users (
 );
 
 CREATE TABLE loans (
-    loan_id         INT          IDENTITY(1,1) NOT NULL,
+    loan_id         INT          GENERATED ALWAYS AS IDENTITY,
     user_id         INT          NOT NULL,
     book_id         INT          NOT NULL,
-    loan_date       DATE         NOT NULL CONSTRAINT DF_loans_loan_date       DEFAULT CAST(GETDATE() AS DATE),
+    loan_date       DATE         NOT NULL DEFAULT CURRENT_DATE,
     due_date        DATE         NOT NULL,
     return_date     DATE         NULL,  -- NULL means loan is still open
-    status          NVARCHAR(20) NOT NULL CONSTRAINT DF_loans_status          DEFAULT 'active',
-    daily_fine_rate DECIMAL(5,2) NOT NULL CONSTRAINT DF_loans_daily_fine_rate DEFAULT 0.50,
-    fine_amount     DECIMAL(8,2) NULL,
-    fine_paid       BIT          NOT NULL CONSTRAINT DF_loans_fine_paid       DEFAULT 0,
+    status          VARCHAR(20)  NOT NULL DEFAULT 'active',
+    daily_fine_rate NUMERIC(5,2) NOT NULL DEFAULT 0.50,
+    fine_amount     NUMERIC(8,2) NULL,
+    fine_paid       BOOLEAN      NOT NULL DEFAULT FALSE,
     CONSTRAINT PK_loans             PRIMARY KEY (loan_id),
     CONSTRAINT FK_loans_user        FOREIGN KEY (user_id)     REFERENCES users (user_id),
     CONSTRAINT FK_loans_book        FOREIGN KEY (book_id)     REFERENCES books     (book_id),

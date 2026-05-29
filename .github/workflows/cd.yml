@@ -87,7 +87,6 @@ jobs:
       - name: Upload DB init scripts and compose file to S3
         run: |
           aws s3 sync db/init/ s3://${{ secrets.TF_BACKEND_BUCKET }}/db-init/ --delete
-          aws s3 cp  db/entrypoint.sh         s3://${{ secrets.TF_BACKEND_BUCKET }}/db-init/entrypoint.sh
           aws s3 cp  docker-compose.prod.yml  s3://${{ secrets.TF_BACKEND_BUCKET }}/docker-compose.prod.yml
 
       - name: Store app version in SSM
@@ -122,8 +121,8 @@ jobs:
           DEPLOY_SCRIPT=$(base64 -w 0 << 'SCRIPT_EOF'
           set -euo pipefail
 
-          DB_SA_PASSWORD=$(aws ssm get-parameter \
-            --name /library-app/db-sa-password \
+          DB_PASSWORD=$(aws ssm get-parameter \
+            --name /library-app/db-password \
             --with-decryption --query Parameter.Value --output text --region "$REGION")
           ECR_REGISTRY=$(aws ssm get-parameter \
             --name /library-app/ecr-registry \
@@ -139,7 +138,6 @@ jobs:
             | docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
           aws s3 sync "s3://${S3_BUCKET}/db-init/" /opt/library-app/db-init/ --delete --region "$REGION"
-          chmod +x /opt/library-app/db-init/entrypoint.sh
 
           aws s3 cp "s3://${S3_BUCKET}/docker-compose.prod.yml" \
             /opt/library-app/docker-compose.prod.yml --region "$REGION"
@@ -147,7 +145,9 @@ jobs:
           cat > /opt/library-app/.env << ENV_EOF
           ECR_REGISTRY=${ECR_REGISTRY}
           APP_VERSION=${APP_VERSION}
-          DB_SA_PASSWORD=${DB_SA_PASSWORD}
+          DB_USER=postgres
+          DB_NAME=librarydb
+          DB_PASSWORD=${DB_PASSWORD}
           ENV_EOF
 
           cd /opt/library-app
