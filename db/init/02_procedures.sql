@@ -1,76 +1,82 @@
 -- ============================================================
--- Library Management System — Stored Procedures
+-- Library Management System — Functions (PL/pgSQL)
 -- ============================================================
-
-USE LibraryDB;
-GO
-
-SET QUOTED_IDENTIFIER ON;
-GO
-
+-- Ported from the original SQL Server stored procedures. Each
+-- function runs inside the caller's transaction, so RAISE EXCEPTION
+-- aborts and rolls back automatically (no explicit BEGIN/COMMIT/
+-- TRY-CATCH needed). They RETURN TABLE so the app can read the
+-- resulting row via "SELECT * FROM sp_xxx(...)".
 
 
 -- ------------------------------------------------------------
 -- sp_borrow_book
 --   Records a new loan for a user.
 --
---   @user_id         : user ID
---   @book_id         : ID of the book to borrow
---   @loan_days       : loan duration in days (default 30)
---   @daily_fine_rate : daily fine rate (default 0.50)
+--   p_user_id         : user ID
+--   p_book_id         : ID of the book to borrow
+--   p_loan_days       : loan duration in days (default 30)
+--   p_daily_fine_rate : daily fine rate (default 0.50)
 --
 --   Errors:
---     50001 – user not found
---     50002 – user suspended
---     50003 – book not found
---     50004 – no copies available
+--     user not found / suspended / book not found / no copies
 -- ------------------------------------------------------------
-CREATE OR ALTER PROCEDURE sp_borrow_book
-    @user_id         INT,
-    @book_id         INT,
-    @loan_days       INT          = 30,
-    @daily_fine_rate DECIMAL(5,2) = 0.50
-AS
+CREATE OR REPLACE FUNCTION sp_borrow_book(
+    p_user_id         INT,
+    p_book_id         INT,
+    p_loan_days       INT          DEFAULT 30,
+    p_daily_fine_rate NUMERIC      DEFAULT 0.50
+)
+RETURNS TABLE (
+    loan_id        INT,
+    user_full_name TEXT,
+    title          VARCHAR,
+    loan_date      DATE,
+    due_date       DATE,
+    status         VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_user_status VARCHAR(20);
+    v_available   SMALLINT;
+    v_loan_date   DATE := CURRENT_DATE;
+    v_due_date    DATE;
+    v_loan_id     INT;
 BEGIN
-    SET NOCOUNT ON;
+    SELECT u.status INTO v_user_status FROM users u WHERE u.user_id = p_user_id;
 
-    DECLARE @user_status NVARCHAR(20);
-    SELECT @user_status = status FROM users WHERE user_id = @user_id;
+    IF v_user_status IS NULL THEN
+        RAISE EXCEPTION 'User not found.';
+    END IF;
 
-    IF @user_status IS NULL
-        THROW 50001, 'User not found.', 1;
+    IF v_user_status <> 'active' THEN
+        RAISE EXCEPTION 'User account is suspended.';
+    END IF;
 
-    IF @user_status <> 'active'
-        THROW 50002, 'User account is suspended.', 1;
+    SELECT b.available_copies INTO v_available FROM books b WHERE b.book_id = p_book_id;
 
-    DECLARE @available SMALLINT;
-    SELECT @available = available_copies FROM books WHERE book_id = @book_id;
+    IF v_available IS NULL THEN
+        RAISE EXCEPTION 'Book not found.';
+    END IF;
 
-    IF @available IS NULL
-        THROW 50003, 'Book not found.', 1;
+    IF v_available = 0 THEN
+        RAISE EXCEPTION 'No copies available for this book.';
+    END IF;
 
-    IF @available = 0
-        THROW 50004, 'No copies available for this book.', 1;
+    v_due_date := v_loan_date + (p_loan_days || ' days')::INTERVAL;
 
-    BEGIN TRANSACTION;
-    BEGIN TRY
-        DECLARE @loan_date DATE = CAST(GETDATE() AS DATE);
-        DECLARE @due_date  DATE = DATEADD(DAY, @loan_days, @loan_date);
+    INSERT INTO loans (user_id, book_id, loan_date, due_date, daily_fine_rate)
+    VALUES (p_user_id, p_book_id, v_loan_date, v_due_date, p_daily_fine_rate)
+    RETURNING loans.loan_id INTO v_loan_id;
 
-        INSERT INTO loans (user_id, book_id, loan_date, due_date, daily_fine_rate)
-        VALUES (@user_id, @book_id, @loan_date, @due_date, @daily_fine_rate);
+    UPDATE books
+    SET available_copies = available_copies - 1
+    WHERE book_id = p_book_id;
 
-        DECLARE @loan_id INT = SCOPE_IDENTITY();
-
-        UPDATE books
-        SET available_copies = available_copies - 1
-        WHERE book_id = @book_id;
-
-        COMMIT TRANSACTION;
-
+    RETURN QUERY
         SELECT
             l.loan_id,
-            u.first_name + ' ' + u.last_name AS user_full_name,
+            (u.first_name || ' ' || u.last_name)::TEXT AS user_full_name,
             b.title,
             l.loan_date,
             l.due_date,
@@ -78,14 +84,9 @@ BEGIN
         FROM loans l
         JOIN users u ON u.user_id = l.user_id
         JOIN books b ON b.book_id = l.book_id
-        WHERE l.loan_id = @loan_id;
-    END TRY
-    BEGIN CATCH
-        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
+        WHERE l.loan_id = v_loan_id;
 END;
-GO
+$$;
 
 
 -- ------------------------------------------------------------
@@ -93,82 +94,82 @@ GO
 --   Records the return of a loan.
 --   Automatically calculates the fine if returned late.
 --
---   @loan_id : ID of the loan to close
+--   p_loan_id : ID of the loan to close
 --
 --   Errors:
---     50010 – loan not found
---     50011 – loan already returned
+--     loan not found / loan already returned
 -- ------------------------------------------------------------
-CREATE OR ALTER PROCEDURE sp_return_book
-    @loan_id INT
-AS
+CREATE OR REPLACE FUNCTION sp_return_book(
+    p_loan_id INT
+)
+RETURNS TABLE (
+    loan_id        INT,
+    user_full_name TEXT,
+    title          VARCHAR,
+    loan_date      DATE,
+    due_date       DATE,
+    return_date    DATE,
+    status         VARCHAR,
+    fine_amount    TEXT,
+    fine_status    TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_status      VARCHAR(20);
+    v_book_id     INT;
+    v_due_date    DATE;
+    v_daily_rate  NUMERIC(5,2);
+    v_return_date DATE := CURRENT_DATE;
+    v_fine_amount NUMERIC(8,2) := NULL;
+    v_days_overdue INT;
 BEGIN
-    SET NOCOUNT ON;
+    SELECT l.status, l.book_id, l.due_date, l.daily_fine_rate
+      INTO v_status, v_book_id, v_due_date, v_daily_rate
+    FROM loans l
+    WHERE l.loan_id = p_loan_id;
 
-    DECLARE @status     NVARCHAR(20);
-    DECLARE @book_id    INT;
-    DECLARE @due_date   DATE;
-    DECLARE @daily_rate DECIMAL(5,2);
+    IF v_status IS NULL THEN
+        RAISE EXCEPTION 'Loan not found.';
+    END IF;
 
-    SELECT
-        @status     = status,
-        @book_id    = book_id,
-        @due_date   = due_date,
-        @daily_rate = daily_fine_rate
-    FROM loans
-    WHERE loan_id = @loan_id;
+    IF v_status = 'returned' THEN
+        RAISE EXCEPTION 'This loan has already been returned.';
+    END IF;
 
-    IF @status IS NULL
-        THROW 50010, 'Loan not found.', 1;
+    IF v_return_date > v_due_date THEN
+        v_days_overdue := v_return_date - v_due_date;
+        v_fine_amount := v_days_overdue * v_daily_rate;
+    END IF;
 
-    IF @status = 'returned'
-        THROW 50011, 'This loan has already been returned.', 1;
+    UPDATE loans
+    SET
+        return_date = v_return_date,
+        status      = 'returned',
+        fine_amount = v_fine_amount
+    WHERE loans.loan_id = p_loan_id;
 
-    BEGIN TRANSACTION;
-    BEGIN TRY
-        DECLARE @return_date DATE          = CAST(GETDATE() AS DATE);
-        DECLARE @fine_amount DECIMAL(8,2)  = NULL;
+    UPDATE books
+    SET available_copies = available_copies + 1
+    WHERE book_id = v_book_id;
 
-        IF @return_date > @due_date
-        BEGIN
-            DECLARE @days_overdue INT = DATEDIFF(DAY, @due_date, @return_date);
-            SET @fine_amount = @days_overdue * @daily_rate;
-        END
-
-        UPDATE loans
-        SET
-            return_date = @return_date,
-            status      = 'returned',
-            fine_amount = @fine_amount
-        WHERE loan_id = @loan_id;
-
-        UPDATE books
-        SET available_copies = available_copies + 1
-        WHERE book_id = @book_id;
-
-        COMMIT TRANSACTION;
-
+    RETURN QUERY
         SELECT
             l.loan_id,
-            u.first_name + ' ' + u.last_name                             AS user_full_name,
+            (u.first_name || ' ' || u.last_name)::TEXT                  AS user_full_name,
             b.title,
             l.loan_date,
             l.due_date,
             l.return_date,
             l.status,
-            ISNULL(CAST(l.fine_amount AS NVARCHAR(20)), 'none')           AS fine_amount,
+            COALESCE(CAST(l.fine_amount AS TEXT), 'none')               AS fine_amount,
             CASE WHEN l.fine_amount IS NULL THEN 'on time'
-                 WHEN l.fine_paid = 1       THEN 'paid'
+                 WHEN l.fine_paid             THEN 'paid'
                  ELSE 'unpaid'
-            END                                                           AS fine_status
+            END                                                         AS fine_status
         FROM loans l
         JOIN users u ON u.user_id = l.user_id
         JOIN books b ON b.book_id = l.book_id
-        WHERE l.loan_id = @loan_id;
-    END TRY
-    BEGIN CATCH
-        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
+        WHERE l.loan_id = p_loan_id;
 END;
-GO
+$$;

@@ -1,34 +1,29 @@
 services:
   db:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    user: root
-    entrypoint: ["/init/entrypoint.sh"]
-    mem_limit: 2g
-    memswap_limit: 4g
+    image: postgres:16-alpine
     environment:
-      ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: "${DB_SA_PASSWORD}"
-      MSSQL_MEMORY_LIMIT_MB: "400"
-      DB_NAME: "LibraryDB"
+      POSTGRES_USER: "${DB_USER}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+      POSTGRES_DB: "${DB_NAME}"
     volumes:
-      - sqlserver-data:/var/opt/mssql
-      - ./db-init:/init:ro
+      - postgres-data:/var/lib/postgresql/data
+      # Init scripts synced from S3 to ./db-init by the deploy workflow.
+      # Run once, in filename order, on first init (empty data dir).
+      - ./db-init:/docker-entrypoint-initdb.d:ro
     restart: unless-stopped
     healthcheck:
-      test: >
-        /opt/mssql-tools18/bin/sqlcmd -S localhost -U SA -P "${DB_SA_PASSWORD}" -No
-        -Q "IF NOT EXISTS (SELECT 1 FROM sys.databases WHERE name='LibraryDB') RAISERROR('not ready',16,1)"
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 15s
       timeout: 5s
-      retries: 30
-      start_period: 90s
+      retries: 20
+      start_period: 30s
 
   app:
     image: ${ECR_REGISTRY}/library-app:${APP_VERSION}
     ports:
       - "8080:8080"
     environment:
-      ConnectionStrings__LibraryDb: "Server=db,1433;Database=LibraryDB;User Id=sa;Password=${DB_SA_PASSWORD};TrustServerCertificate=True;"
+      ConnectionStrings__LibraryDb: "Host=db;Port=5432;Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD}"
       ASPNETCORE_ENVIRONMENT: "Production"
     depends_on:
       db:
@@ -36,4 +31,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  sqlserver-data:
+  postgres-data:

@@ -6,8 +6,8 @@ using LibraryApp.Tests.Integration.Fixtures;
 namespace LibraryApp.Tests.Integration;
 
 [Trait("Category", "Integration")]
-[Collection("SqlServer")]
-public class BookRepositoryTests(SqlServerFixture fixture)
+[Collection("Postgres")]
+public class BookRepositoryTests(PostgresFixture fixture)
 {
     private readonly BookRepository _repo = new(fixture.DapperContext);
 
@@ -24,7 +24,7 @@ public class BookRepositoryTests(SqlServerFixture fixture)
     {
         // Get any real title from seed, then search for part of it.
         using var conn = fixture.DapperContext.CreateConnection();
-        var title = await conn.ExecuteScalarAsync<string>("SELECT TOP 1 title FROM books ORDER BY book_id");
+        var title = await conn.ExecuteScalarAsync<string>("SELECT title FROM books ORDER BY book_id LIMIT 1");
 
         var (items, total) = await _repo.GetPagedAsync(0, 20, title![..3]);
         Assert.True(total >= 1);
@@ -69,7 +69,7 @@ public class BookRepositoryTests(SqlServerFixture fixture)
     public async Task CreateAsync_InsertsBookWithAuthors()
     {
         using var conn = fixture.DapperContext.CreateConnection();
-        var authorId = await conn.ExecuteScalarAsync<int>("SELECT TOP 1 author_id FROM authors");
+        var authorId = await conn.ExecuteScalarAsync<int>("SELECT author_id FROM authors LIMIT 1");
 
         var book = new Book
         {
@@ -92,7 +92,7 @@ public class BookRepositoryTests(SqlServerFixture fixture)
     public async Task DeleteAsync_RemovesBookAndAuthorLinks()
     {
         using var conn = fixture.DapperContext.CreateConnection();
-        var authorId = await conn.ExecuteScalarAsync<int>("SELECT TOP 1 author_id FROM authors");
+        var authorId = await conn.ExecuteScalarAsync<int>("SELECT author_id FROM authors LIMIT 1");
 
         var book = new Book { Title = $"ToDelete {Guid.NewGuid():N}", Isbn = Guid.NewGuid().ToString("N")[..13], TotalCopies = 1, SelectedAuthorIds = [authorId] };
         var bookId = await _repo.CreateAsync(book);
@@ -109,7 +109,7 @@ public class BookRepositoryTests(SqlServerFixture fixture)
     public async Task GetByIdAsync_ExistingBook_ReturnsBook()
     {
         using var conn = fixture.DapperContext.CreateConnection();
-        var bookId = await conn.ExecuteScalarAsync<int>("SELECT TOP 1 book_id FROM books");
+        var bookId = await conn.ExecuteScalarAsync<int>("SELECT book_id FROM books LIMIT 1");
 
         var book = await _repo.GetByIdAsync(bookId);
         Assert.NotNull(book);

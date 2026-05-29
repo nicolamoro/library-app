@@ -18,7 +18,7 @@ public class PublisherRepository(DapperContext ctx) : IPublisherRepository
         var dir = sortDescending ? "DESC" : "ASC";
         var param = new
         {
-            Search = string.IsNullOrWhiteSpace(search) ? null : search,
+            Search = string.IsNullOrWhiteSpace(search) ? "" : search,
             Offset = offset,
             PageSize = pageSize
         };
@@ -32,15 +32,15 @@ public class PublisherRepository(DapperContext ctx) : IPublisherRepository
             """;
 
         const string where = """
-            WHERE @Search IS NULL
-               OR Name LIKE '%' + @Search + '%'
+            WHERE @Search = ''
+               OR Name ILIKE '%' || @Search || '%'
             """;
 
         var sql = $"""
             {cte} SELECT COUNT(*) FROM cte {where};
             {cte} SELECT * FROM cte {where}
             ORDER BY {col} {dir}
-            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+            OFFSET @Offset LIMIT @PageSize;
             """;
 
         using var conn = ctx.CreateConnection();
@@ -65,8 +65,8 @@ public class PublisherRepository(DapperContext ctx) : IPublisherRepository
     {
         const string sql = """
             INSERT INTO publishers (name, address, phone, email, website)
-            VALUES (@Name, @Address, @Phone, @Email, @Website);
-            SELECT CAST(SCOPE_IDENTITY() AS INT);
+            VALUES (@Name, @Address, @Phone, @Email, @Website)
+            RETURNING publisher_id;
             """;
         using var conn = ctx.CreateConnection();
         return await conn.ExecuteScalarAsync<int>(sql, publisher);

@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This app runs on a single EC2 t2.micro instance (AWS Free Tier) using Docker Compose. The app image is stored in ECR; the SQL Server container uses the official Microsoft base image with init scripts mounted from S3.
+This app runs on a single EC2 t2.micro instance (AWS Free Tier) using Docker Compose. The app image is stored in ECR; the PostgreSQL container uses the official `postgres:16-alpine` base image with init scripts mounted from S3.
 
 ## Architecture overview
 
@@ -20,7 +20,7 @@ git push tag vX.Y.Z
             └─ docker compose up -d
 
 AWS resources (all tagged Project=library-app):
-  EC2 t2.micro         — Blazor Server app + SQL Server 2022 containers
+  EC2 t2.micro         — Blazor Server app + PostgreSQL 16 containers
   ECR repository       — library-app image only (~200-300 MB, within free tier)
   EBS 20 GB gp2        — root volume
   Elastic IP           — static public IP
@@ -28,7 +28,7 @@ AWS resources (all tagged Project=library-app):
   IAM instance profile — SSM core + ECR read + SSM params + S3 db-init read
   S3 bucket            — Terraform state + DB init scripts + compose file
   DynamoDB table       — Terraform state lock
-  SSM Parameters       — /library-app/{db-sa-password, ecr-registry, s3-bucket, app-version}
+  SSM Parameters       — /library-app/{db-password, ecr-registry, s3-bucket, app-version}
 ```
 
 ## GitHub configuration required
@@ -39,7 +39,7 @@ AWS resources (all tagged Project=library-app):
 |--------|-----------------|--------|
 | `AWS_ACCESS_KEY_ID` | Prerequisite | AWS Console → IAM → Create access key |
 | `AWS_SECRET_ACCESS_KEY` | Prerequisite | Same step |
-| `DB_SA_PASSWORD` | Step 1 | Your choice — strong password |
+| `DB_PASSWORD` | Step 1 | Your choice — strong password |
 | `TF_BACKEND_BUCKET` | Step 2 | `infra.yml bootstrap` step summary |
 | `TF_BACKEND_TABLE` | Step 2 | `infra.yml bootstrap` step summary |
 | `EC2_INSTANCE_ID` | Step 3 | `infra.yml apply` step summary |
@@ -75,8 +75,8 @@ Save `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` as GitHub **secrets**, and 
 
 ### Step 1 — Set DB password
 
-Choose a strong SQL Server password (min. 8 chars, uppercase + lowercase + digits + symbols).  
-Save as GitHub secret: `DB_SA_PASSWORD`.
+Choose a strong PostgreSQL password (min. 8 chars, uppercase + lowercase + digits + symbols).  
+Save as GitHub secret: `DB_PASSWORD`.
 
 ---
 
@@ -206,12 +206,9 @@ aws dynamodb delete-table --table-name library-app-tflock --region <AWS_REGION>
 
 ## DB initialization
 
-The SQL Server container runs `db/entrypoint.sh` on first start. It:
-1. Waits for SQL Server to be ready (up to 90s)
-2. Checks if `LibraryDB` already exists
-3. If not: runs `01_schema.sql`, `02_procedures.sql`, `03_seed.sql`
+The `postgres:16-alpine` container automatically runs any scripts in `/docker-entrypoint-initdb.d` (the synced `db-init/` directory) **once, on first init** — i.e. only when the data directory is empty. It runs them in filename order: `01_schema.sql`, `02_procedures.sql`, `03_seed.sql`.
 
-The `sqlserver-data` Docker volume persists across container restarts and redeployments. Init scripts only run on the very first container creation.
+The `postgres-data` Docker volume persists across container restarts and redeployments. Init scripts only run on the very first container creation.
 
 To reset the database (⚠️ data loss):
 ```bash

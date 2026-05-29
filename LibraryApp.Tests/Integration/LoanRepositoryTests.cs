@@ -5,8 +5,8 @@ using LibraryApp.Tests.Integration.Fixtures;
 namespace LibraryApp.Tests.Integration;
 
 [Trait("Category", "Integration")]
-[Collection("SqlServer")]
-public class LoanRepositoryTests(SqlServerFixture fixture)
+[Collection("Postgres")]
+public class LoanRepositoryTests(PostgresFixture fixture)
 {
     private readonly LoanRepository _repo = new(fixture.DapperContext);
 
@@ -15,9 +15,9 @@ public class LoanRepositoryTests(SqlServerFixture fixture)
     {
         using var conn = fixture.DapperContext.CreateConnection();
         var userId = await conn.ExecuteScalarAsync<int>(
-            "SELECT TOP 1 user_id FROM users WHERE status = 'active' AND is_admin = 0 ORDER BY user_id");
+            "SELECT user_id FROM users WHERE status = 'active' AND is_admin = FALSE ORDER BY user_id LIMIT 1");
         var bookId = await conn.ExecuteScalarAsync<int>(
-            "SELECT TOP 1 book_id FROM books WHERE available_copies > 0 ORDER BY book_id");
+            "SELECT book_id FROM books WHERE available_copies > 0 ORDER BY book_id LIMIT 1");
         return (userId, bookId);
     }
 
@@ -65,19 +65,19 @@ public class LoanRepositoryTests(SqlServerFixture fixture)
     }
 
     [Fact]
-    public async Task BorrowAsync_UnavailableBook_ThrowsSqlException()
+    public async Task BorrowAsync_UnavailableBook_ThrowsException()
     {
         using var conn = fixture.DapperContext.CreateConnection();
 
         // Insert a book with 0 copies
         var zeroBookId = await conn.ExecuteScalarAsync<int>("""
             INSERT INTO books (title, total_copies, available_copies)
-            VALUES ('Test Book Zero Copies', 1, 0);
-            SELECT CAST(SCOPE_IDENTITY() AS INT);
+            VALUES ('Test Book Zero Copies', 1, 0)
+            RETURNING book_id;
             """);
 
         var userId = await conn.ExecuteScalarAsync<int>(
-            "SELECT TOP 1 user_id FROM users WHERE status = 'active' AND is_admin = 0");
+            "SELECT user_id FROM users WHERE status = 'active' AND is_admin = FALSE LIMIT 1");
 
         await Assert.ThrowsAnyAsync<Exception>(() => _repo.BorrowAsync(userId, zeroBookId));
     }
@@ -90,7 +90,7 @@ public class LoanRepositoryTests(SqlServerFixture fixture)
 
         using var conn = fixture.DapperContext.CreateConnection();
         var loanId = await conn.ExecuteScalarAsync<int>(
-            "SELECT TOP 1 loan_id FROM loans WHERE user_id = @userId AND book_id = @bookId AND status = 'active' ORDER BY loan_id DESC",
+            "SELECT loan_id FROM loans WHERE user_id = @userId AND book_id = @bookId AND status = 'active' ORDER BY loan_id DESC LIMIT 1",
             new { userId, bookId });
 
         var copiesBefore = await conn.ExecuteScalarAsync<int>(
@@ -112,7 +112,7 @@ public class LoanRepositoryTests(SqlServerFixture fixture)
     {
         using var conn = fixture.DapperContext.CreateConnection();
         var userId = await conn.ExecuteScalarAsync<int>(
-            "SELECT TOP 1 user_id FROM loans ORDER BY user_id");
+            "SELECT user_id FROM loans ORDER BY user_id LIMIT 1");
 
         var (items, total) = await _repo.GetByUserIdPagedAsync(userId, 0, 100);
         Assert.True(total > 0);

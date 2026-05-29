@@ -1,4 +1,3 @@
-using System.Data;
 using Dapper;
 using LibraryApp.Models;
 
@@ -8,7 +7,7 @@ public class LoanRepository(DapperContext ctx) : ILoanRepository
 {
     private const string SelectCols = """
         l.loan_id LoanId, l.user_id UserId,
-        u.first_name + ' ' + u.last_name UserFullName,
+        u.first_name || ' ' || u.last_name UserFullName,
         l.book_id BookId, b.title BookTitle,
         l.loan_date LoanDate, l.due_date DueDate, l.return_date ReturnDate,
         l.status Status, l.daily_fine_rate DailyFineRate,
@@ -48,7 +47,7 @@ public class LoanRepository(DapperContext ctx) : ILoanRepository
         var orderBy = string.Join(", ", col.Split(',').Select(c => $"{c.Trim()} {dir}"));
         var param = new
         {
-            Filter = filter == "all" ? null : filter,
+            Filter = filter == "all" ? "" : filter,
             Offset = offset,
             PageSize = pageSize
         };
@@ -58,15 +57,15 @@ public class LoanRepository(DapperContext ctx) : ILoanRepository
             FROM loans l
             JOIN users u ON u.user_id = l.user_id
             JOIN books b ON b.book_id = l.book_id
-            WHERE @Filter IS NULL OR l.status = @Filter;
+            WHERE @Filter = '' OR l.status = @Filter;
 
             SELECT {SelectCols}
             FROM loans l
             JOIN users u ON u.user_id = l.user_id
             JOIN books b ON b.book_id = l.book_id
-            WHERE @Filter IS NULL OR l.status = @Filter
+            WHERE @Filter = '' OR l.status = @Filter
             ORDER BY {orderBy}
-            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+            OFFSET @Offset LIMIT @PageSize;
             """;
 
         using var conn = ctx.CreateConnection();
@@ -86,7 +85,7 @@ public class LoanRepository(DapperContext ctx) : ILoanRepository
         var param = new
         {
             UserId = userId,
-            Filter = filter == "all" ? null : filter,
+            Filter = filter == "all" ? "" : filter,
             Offset = offset,
             PageSize = pageSize
         };
@@ -96,16 +95,16 @@ public class LoanRepository(DapperContext ctx) : ILoanRepository
             JOIN users u ON u.user_id = l.user_id
             JOIN books b ON b.book_id = l.book_id
             WHERE l.user_id = @UserId
-              AND (@Filter IS NULL OR l.status = @Filter);
+              AND (@Filter = '' OR l.status = @Filter);
 
             SELECT {SelectCols}
             FROM loans l
             JOIN users u ON u.user_id = l.user_id
             JOIN books b ON b.book_id = l.book_id
             WHERE l.user_id = @UserId
-              AND (@Filter IS NULL OR l.status = @Filter)
+              AND (@Filter = '' OR l.status = @Filter)
             ORDER BY {orderBy}
-            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+            OFFSET @Offset LIMIT @PageSize;
             """;
 
         using var conn = ctx.CreateConnection();
@@ -124,7 +123,7 @@ public class LoanRepository(DapperContext ctx) : ILoanRepository
             JOIN users u ON u.user_id = l.user_id
             JOIN books b ON b.book_id = l.book_id
             WHERE l.status = 'overdue'
-               OR (l.status = 'active' AND l.due_date < CAST(GETDATE() AS DATE))
+               OR (l.status = 'active' AND l.due_date < CURRENT_DATE)
             ORDER BY l.due_date
             """);
     }
@@ -153,16 +152,16 @@ public class LoanRepository(DapperContext ctx) : ILoanRepository
             JOIN users u ON u.user_id = l.user_id
             JOIN books b ON b.book_id = l.book_id
             WHERE l.status = 'overdue'
-               OR (l.status = 'active' AND l.due_date < CAST(GETDATE() AS DATE));
+               OR (l.status = 'active' AND l.due_date < CURRENT_DATE);
 
             SELECT {SelectCols}
             FROM loans l
             JOIN users u ON u.user_id = l.user_id
             JOIN books b ON b.book_id = l.book_id
             WHERE l.status = 'overdue'
-               OR (l.status = 'active' AND l.due_date < CAST(GETDATE() AS DATE))
+               OR (l.status = 'active' AND l.due_date < CURRENT_DATE)
             ORDER BY {orderBy}
-            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+            OFFSET @Offset LIMIT @PageSize;
             """;
 
         using var conn = ctx.CreateConnection();
@@ -188,17 +187,17 @@ public class LoanRepository(DapperContext ctx) : ILoanRepository
     public async Task BorrowAsync(int userId, int bookId, int loanDays = 30)
     {
         using var conn = ctx.CreateConnection();
-        await conn.ExecuteAsync("sp_borrow_book",
-            new { user_id = userId, book_id = bookId, loan_days = loanDays },
-            commandType: CommandType.StoredProcedure);
+        await conn.ExecuteAsync(
+            "SELECT * FROM sp_borrow_book(@user_id, @book_id, @loan_days)",
+            new { user_id = userId, book_id = bookId, loan_days = loanDays });
     }
 
     public async Task<LoanDetail?> ReturnAsync(int loanId)
     {
         using var conn = ctx.CreateConnection();
-        await conn.ExecuteAsync("sp_return_book",
-            new { loan_id = loanId },
-            commandType: CommandType.StoredProcedure);
+        await conn.ExecuteAsync(
+            "SELECT * FROM sp_return_book(@loan_id)",
+            new { loan_id = loanId });
         return await conn.QueryFirstOrDefaultAsync<LoanDetail>($"""
             SELECT {SelectCols}
             FROM loans l

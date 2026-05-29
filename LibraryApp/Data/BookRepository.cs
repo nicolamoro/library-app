@@ -14,7 +14,7 @@ public class BookRepository(DapperContext ctx) : IBookRepository
                    b.publication_year PublicationYear, b.language Language,
                    b.page_count PageCount, b.total_copies TotalCopies,
                    b.available_copies AvailableCopies,
-                   STRING_AGG(a.first_name + ' ' + a.last_name, ', ') AuthorsDisplay
+                   STRING_AGG(a.first_name || ' ' || a.last_name, ', ') AuthorsDisplay
             FROM books b
             LEFT JOIN publishers p  ON p.publisher_id = b.publisher_id
             LEFT JOIN genres g      ON g.genre_id     = b.genre_id
@@ -47,7 +47,7 @@ public class BookRepository(DapperContext ctx) : IBookRepository
         var orderBy = string.Join(", ", col.Split(',').Select(c => $"{c.Trim()} {dir}"));
         var param = new
         {
-            Search = string.IsNullOrWhiteSpace(search) ? null : search,
+            Search = string.IsNullOrWhiteSpace(search) ? "" : search,
             Offset = offset,
             PageSize = pageSize
         };
@@ -60,7 +60,7 @@ public class BookRepository(DapperContext ctx) : IBookRepository
                        b.publication_year PublicationYear, b.language Language,
                        b.page_count PageCount, b.total_copies TotalCopies,
                        b.available_copies AvailableCopies,
-                       STRING_AGG(a.first_name + ' ' + a.last_name, ', ') AuthorsDisplay
+                       STRING_AGG(a.first_name || ' ' || a.last_name, ', ') AuthorsDisplay
                 FROM books b
                 LEFT JOIN publishers p  ON p.publisher_id = b.publisher_id
                 LEFT JOIN genres g      ON g.genre_id     = b.genre_id
@@ -73,17 +73,17 @@ public class BookRepository(DapperContext ctx) : IBookRepository
             """;
 
         const string where = """
-            WHERE @Search IS NULL
-               OR Title                       LIKE '%' + @Search + '%'
-               OR ISNULL(GenreName,'')        LIKE '%' + @Search + '%'
-               OR ISNULL(AuthorsDisplay,'')   LIKE '%' + @Search + '%'
+            WHERE @Search = ''
+               OR Title                       ILIKE '%' || @Search || '%'
+               OR COALESCE(GenreName,'')       ILIKE '%' || @Search || '%'
+               OR COALESCE(AuthorsDisplay,'')  ILIKE '%' || @Search || '%'
             """;
 
         var sql = $"""
             {cte} SELECT COUNT(*) FROM cte {where};
             {cte} SELECT * FROM cte {where}
             ORDER BY {orderBy}
-            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+            OFFSET @Offset LIMIT @PageSize;
             """;
 
         using var conn = ctx.CreateConnection();
@@ -120,8 +120,8 @@ public class BookRepository(DapperContext ctx) : IBookRepository
             INSERT INTO books (isbn, title, publisher_id, genre_id, publication_year,
                                language, page_count, total_copies, available_copies)
             VALUES (@Isbn, @Title, @PublisherId, @GenreId, @PublicationYear,
-                    @Language, @PageCount, @TotalCopies, @TotalCopies);
-            SELECT CAST(SCOPE_IDENTITY() AS INT);
+                    @Language, @PageCount, @TotalCopies, @TotalCopies)
+            RETURNING book_id;
             """;
         using var conn = ctx.CreateConnection();
         await conn.OpenAsync();

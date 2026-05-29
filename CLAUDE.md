@@ -23,9 +23,9 @@ App runs at **http://127.0.0.1:8080** (use `127.0.0.1`, not `localhost` — corp
 ## Running SQL scripts manually
 
 ```sh
-sqlcmd -S localhost -U sa -P "StrongPass123!" -No -i db/init/01_schema.sql
-sqlcmd -S localhost -U sa -P "StrongPass123!" -No -d LibraryDB -i db/init/02_procedures.sql
-sqlcmd -S localhost -U sa -P "StrongPass123!" -No -d LibraryDB -i db/init/03_seed.sql
+docker exec -i $(docker compose ps -q db) psql -U postgres -d librarydb < db/init/01_schema.sql
+docker exec -i $(docker compose ps -q db) psql -U postgres -d librarydb < db/init/02_procedures.sql
+docker exec -i $(docker compose ps -q db) psql -U postgres -d librarydb < db/init/03_seed.sql
 ```
 
 ### Volume seed (stress test)
@@ -34,19 +34,17 @@ sqlcmd -S localhost -U sa -P "StrongPass123!" -No -d LibraryDB -i db/init/03_see
 
 ```sh
 # Via Docker (DB container must be running)
-docker exec -i $(docker compose ps -q db) \
-  /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "StrongPass123!" -C \
-  -i /dev/stdin < db/seed_volume.sql
+docker exec -i $(docker compose ps -q db) psql -U postgres -d librarydb < db/seed_volume.sql
 
-# Or if sqlcmd is available locally
-sqlcmd -S localhost -U sa -P "StrongPass123!" -No -d LibraryDB -i db/seed_volume.sql
+# Or if psql is available locally
+psql "host=localhost port=5432 dbname=librarydb user=postgres password=StrongPass123!" -f db/seed_volume.sql
 ```
 
 The script is **not idempotent**: running it twice raises an error and exits without changes (guard on `isbn LIKE 'VOL%'`). To reset, wipe the volume and restart: `docker compose down -v && docker compose up --build`.
 
 ## Architecture
 
-**Blazor Server → Dapper → SQL Server** (no service layer).
+**Blazor Server → Dapper → PostgreSQL** (no service layer).
 
 Razor components inject repositories directly, call `async` methods, and call `StateHasChanged()` where needed. There is no intermediate service or CQRS layer.
 
@@ -57,8 +55,8 @@ Browser ──WebSocket──► Blazor Server Circuit
                              │
                    Repository (Dapper)
                              │
-                        SQL Server
-                   (stored procedures)
+                        PostgreSQL
+                   (PL/pgSQL functions)
 ```
 
 ### Key directories
@@ -70,15 +68,17 @@ Browser ──WebSocket──► Blazor Server Circuit
 | `LibraryApp/Data/` | `DapperContext` (connection factory), repositories for Book/Author/Genre/Publisher/User/Loan |
 | `LibraryApp/Models/` | POCOs: `Book`, `Author`, `Genre`, `Publisher`, `User`, `LoanDetail` |
 | `LibraryApp/Pages/` | Razor Pages: `Login.cshtml`, `Logout.cshtml` (cookie auth) |
-| `db/init/` | SQL scripts: `01_schema.sql` (DDL), `02_procedures.sql` (SPs), `03_seed.sql` |
+| `db/init/` | SQL scripts run by the postgres image on first init: `01_schema.sql` (DDL), `02_procedures.sql` (functions), `03_seed.sql` |
 
 ### Database
 
-SQL Server 2022. Loan lifecycle is managed by two stored procedures:
+PostgreSQL 16 (containerized; runs init scripts via `/docker-entrypoint-initdb.d` on first start). Loan lifecycle is managed by two PL/pgSQL functions (`RETURNS TABLE`, invoked via `SELECT * FROM sp_xxx(...)`):
 - **`sp_borrow_book`** — validates user status and book availability, inserts loan, decrements `available_copies`
 - **`sp_return_book`** — sets `return_date`, computes `fine_amount` if overdue, increments `available_copies`
 
-Direct SQL queries are written inline in repositories using Dapper raw SQL (no ORM). `DateOnly` mapping requires the custom `DateOnlyTypeHandler` registered in `Program.cs`.
+Both raise their validation errors via `RAISE EXCEPTION` with the same human-readable message text the UI surfaces (e.g. `User account is suspended.`).
+
+Direct SQL queries are written inline in repositories using Dapper raw SQL (no ORM) via the **Npgsql** driver. Npgsql returns `date` columns as `DateTime`, so the custom `DateOnlyTypeHandler` (registered in `Program.cs`) maps them to the models' `DateOnly` properties. Search filters use `ILIKE` (case-insensitive, matching the old SQL Server collation behaviour) and nullable filter/search params use an empty-string sentinel (`@Search = ''`) to avoid Npgsql's untyped-NULL inference errors.
 
 ### Pagination and sorting
 
@@ -86,16 +86,16 @@ All list pages use **server-side pagination and sorting** via MudBlazor's `MudTa
 
 | Repository method | Used by | Filter |
 |---|---|---|
-| `BookRepository.GetPagedAsync(page, pageSize, search?, sortBy?, sortDescending)` | BookList | LIKE on title / genre / authors |
-| `AuthorRepository.GetPagedAsync(page, pageSize, search?, sortBy?, sortDescending)` | AuthorList | LIKE on first/last name / nationality |
-| `GenreRepository.GetPagedAsync(page, pageSize, search?, sortBy?, sortDescending)` | GenreList | LIKE on name / description |
-| `PublisherRepository.GetPagedAsync(page, pageSize, search?, sortBy?, sortDescending)` | PublisherList | LIKE on name |
-| `UserRepository.GetPagedAsync(page, pageSize, search?, sortBy?, sortDescending)` | UserList | LIKE on full name / email |
+| `BookRepository.GetPagedAsync(page, pageSize, search?, sortBy?, sortDescending)` | BookList | ILIKE on title / genre / authors |
+| `AuthorRepository.GetPagedAsync(page, pageSize, search?, sortBy?, sortDescending)` | AuthorList | ILIKE on first/last name / nationality |
+| `GenreRepository.GetPagedAsync(page, pageSize, search?, sortBy?, sortDescending)` | GenreList | ILIKE on name / description |
+| `PublisherRepository.GetPagedAsync(page, pageSize, search?, sortBy?, sortDescending)` | PublisherList | ILIKE on name |
+| `UserRepository.GetPagedAsync(page, pageSize, search?, sortBy?, sortDescending)` | UserList | ILIKE on full name / email |
 | `LoanRepository.GetPagedAsync(page, pageSize, filter, sortBy?, sortDescending)` | LoanList | exact `status` match (`all` = no filter) |
 | `LoanRepository.GetOverduePagedAsync(page, pageSize, sortBy?, sortDescending)` | Home dashboard | `status = 'overdue'` or active past due |
 | `LoanRepository.GetByUserIdPagedAsync(userId, page, pageSize, sortBy?, sortDescending)` | MyLoans | filter by user_id |
 
-Each method runs **two SQL statements in one round-trip** via `QueryMultipleAsync`: a `COUNT(*)` and a `SELECT … OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY`. The UI uses `MudTablePager` with options `[10, 20, 50, 100]` rows per page (default 20). Search fields trigger `ReloadServerData()` with a 300 ms debounce.
+Each method runs **two SQL statements in one round-trip** via `QueryMultipleAsync`: a `COUNT(*)` and a `SELECT … OFFSET @Offset LIMIT @PageSize`. The UI uses `MudTablePager` with options `[10, 20, 50, 100]` rows per page (default 20). Search fields trigger `ReloadServerData()` with a 300 ms debounce.
 
 **Sorting** is implemented via `MudTableSortLabel` on each sortable column header. `TableState.SortLabel` and `TableState.SortDirection` are passed to the repository. Each repository validates the label against an internal whitelist dictionary (`_sortMap`) before interpolating into `ORDER BY`, preventing SQL injection. The `Autori` column (computed `STRING_AGG`) and action columns are not sortable.
 
@@ -113,7 +113,7 @@ Cookie-based authentication (ASP.NET Core `AddCookie`) — **not** ASP.NET Ident
 - `user_id` — PK, used as `NameIdentifier` claim
 - `email` — NOT NULL, UNIQUE; used as login identifier; immutable after creation
 - `password_hash` — BCrypt work factor 12 (via BCrypt.Net-Next 4.0.3)
-- `is_admin` — `1` for admins, `0` for users
+- `is_admin` — `TRUE` for admins, `FALSE` for users
 - `last_login` — updated on each successful login
 
 **Seed credentials:**
@@ -145,22 +145,23 @@ Managed entirely client-side: `MudThemeProvider` with `@bind-IsDarkMode`; prefer
 Credentials are stored in `.env` (gitignored). Copy `.env.example` to `.env` and fill in the values before starting the stack:
 
 ```
-DB_SA_PASSWORD=StrongPass123!
-DB_NAME=LibraryDB
+DB_USER=postgres
+DB_PASSWORD=StrongPass123!
+DB_NAME=librarydb
 DB_SERVER=db
 ```
 
 `docker-compose.yml` reads `.env` automatically and injects the variables into both containers:
-- `db` receives `MSSQL_SA_PASSWORD`
-- `app` receives `ConnectionStrings__LibraryDb` (built from the three vars above)
+- `db` receives `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB`
+- `app` receives `ConnectionStrings__LibraryDb` (built from the four vars above)
 
 ASP.NET Core maps `ConnectionStrings__LibraryDb` to `IConfiguration.GetConnectionString("LibraryDb")` automatically — no code changes needed.
 
-For local non-Docker development, `appsettings.Development.json` provides a localhost fallback (already set to `Server=localhost,1433`). Override it by setting the `ConnectionStrings__LibraryDb` environment variable in your shell if needed.
+For local non-Docker development, `appsettings.Development.json` provides a localhost fallback (already set to `Host=localhost;Port=5432`). Override it by setting the `ConnectionStrings__LibraryDb` environment variable in your shell if needed.
 
 ## Stack
 
 - .NET 10 / Blazor Server with Interactive Server render mode
 - MudBlazor 9.4.0 (component library)
-- Dapper 2.1 (micro-ORM)
-- SQL Server 2022
+- Dapper 2.1 (micro-ORM) + Npgsql
+- PostgreSQL 16

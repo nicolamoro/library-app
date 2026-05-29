@@ -21,7 +21,7 @@ public class AuthorRepository(DapperContext ctx) : IAuthorRepository
         var dir = sortDescending ? "DESC" : "ASC";
         var param = new
         {
-            Search = string.IsNullOrWhiteSpace(search) ? null : search,
+            Search = string.IsNullOrWhiteSpace(search) ? "" : search,
             Offset = offset,
             PageSize = pageSize
         };
@@ -35,17 +35,17 @@ public class AuthorRepository(DapperContext ctx) : IAuthorRepository
             """;
 
         const string where = """
-            WHERE @Search IS NULL
-               OR FirstName               LIKE '%' + @Search + '%'
-               OR LastName                LIKE '%' + @Search + '%'
-               OR ISNULL(Nationality,'')  LIKE '%' + @Search + '%'
+            WHERE @Search = ''
+               OR FirstName                ILIKE '%' || @Search || '%'
+               OR LastName                 ILIKE '%' || @Search || '%'
+               OR COALESCE(Nationality,'')  ILIKE '%' || @Search || '%'
             """;
 
         var sql = $"""
             {cte} SELECT COUNT(*) FROM cte {where};
             {cte} SELECT * FROM cte {where}
             ORDER BY {col} {dir}
-            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+            OFFSET @Offset LIMIT @PageSize;
             """;
 
         using var conn = ctx.CreateConnection();
@@ -70,8 +70,8 @@ public class AuthorRepository(DapperContext ctx) : IAuthorRepository
     {
         const string sql = """
             INSERT INTO authors (first_name, last_name, birth_date, nationality, biography)
-            VALUES (@FirstName, @LastName, @BirthDate, @Nationality, @Biography);
-            SELECT CAST(SCOPE_IDENTITY() AS INT);
+            VALUES (@FirstName, @LastName, @BirthDate, @Nationality, @Biography)
+            RETURNING author_id;
             """;
         using var conn = ctx.CreateConnection();
         return await conn.ExecuteScalarAsync<int>(sql, author);

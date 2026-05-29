@@ -18,7 +18,7 @@ public class GenreRepository(DapperContext ctx) : IGenreRepository
         var dir = sortDescending ? "DESC" : "ASC";
         var param = new
         {
-            Search = string.IsNullOrWhiteSpace(search) ? null : search,
+            Search = string.IsNullOrWhiteSpace(search) ? "" : search,
             Offset = offset,
             PageSize = pageSize
         };
@@ -31,16 +31,16 @@ public class GenreRepository(DapperContext ctx) : IGenreRepository
             """;
 
         const string where = """
-            WHERE @Search IS NULL
-               OR Name                        LIKE '%' + @Search + '%'
-               OR ISNULL(Description,'')      LIKE '%' + @Search + '%'
+            WHERE @Search = ''
+               OR Name                       ILIKE '%' || @Search || '%'
+               OR COALESCE(Description,'')     ILIKE '%' || @Search || '%'
             """;
 
         var sql = $"""
             {cte} SELECT COUNT(*) FROM cte {where};
             {cte} SELECT * FROM cte {where}
             ORDER BY {col} {dir}
-            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+            OFFSET @Offset LIMIT @PageSize;
             """;
 
         using var conn = ctx.CreateConnection();
@@ -61,8 +61,8 @@ public class GenreRepository(DapperContext ctx) : IGenreRepository
     public async Task<int> CreateAsync(Genre genre)
     {
         const string sql = """
-            INSERT INTO genres (name, description) VALUES (@Name, @Description);
-            SELECT CAST(SCOPE_IDENTITY() AS INT);
+            INSERT INTO genres (name, description) VALUES (@Name, @Description)
+            RETURNING genre_id;
             """;
         using var conn = ctx.CreateConnection();
         return await conn.ExecuteScalarAsync<int>(sql, genre);
