@@ -198,7 +198,18 @@ docker compose -f docker-compose.prod.yml restart app
 This runs `terraform destroy` and deletes all SSM parameters. The S3 bucket and DynamoDB table (used for Terraform state) are not deleted by Terraform — remove them manually if no longer needed:
 
 ```bash
-aws s3 rb s3://<TF_BACKEND_BUCKET> --force
+# Versioned buckets require purging all versions and delete markers before rb
+BUCKET="<TF_BACKEND_BUCKET>"
+aws s3 rm "s3://$BUCKET" --recursive
+aws s3api delete-objects --bucket "$BUCKET" \
+  --delete "$(aws s3api list-object-versions --bucket "$BUCKET" \
+      --query '{Objects: Versions[].{Key:Key,VersionId:VersionId}}' --output json)" \
+  2>/dev/null || true
+aws s3api delete-objects --bucket "$BUCKET" \
+  --delete "$(aws s3api list-object-versions --bucket "$BUCKET" \
+      --query '{Objects: DeleteMarkers[].{Key:Key,VersionId:VersionId}}' --output json)" \
+  2>/dev/null || true
+aws s3 rb "s3://$BUCKET"
 aws dynamodb delete-table --table-name library-app-tflock --region <AWS_REGION>
 ```
 
