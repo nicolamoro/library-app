@@ -29,22 +29,45 @@ Web application for managing a library: book catalogue, user registry, and loan 
 ## Project structure
 
 ```
-docker-compose.yml              — starts the full stack with a single command
+docker-compose.yml              — local dev: full stack with a single command
+docker-compose.prod.yml         — production compose (pulled from S3 by CD pipeline)
 db/
   init/                         — run by the postgres image on first start (/docker-entrypoint-initdb.d)
     01_schema.sql               — DDL: table creation
     02_procedures.sql           — borrow/return PL/pgSQL functions
     03_seed.sql                 — sample data
   seed_volume.sql               — optional high-volume seed (stress test)
+infra/
+  terraform/
+    main.tf                     — EC2, Security Group, Elastic IP
+    ecr.tf                      — ECR repository + lifecycle policy
+    iam.tf                      — instance profile with SSM/ECR/S3/SSM-params permissions
+    backend.tf                  — S3 + DynamoDB remote state backend
+    variables.tf                — input variables
+    outputs.tf                  — elastic_ip, instance_id, ecr_registry
+    user_data.sh                — EC2 bootstrap: Docker install, swap, SSM agent
+.github/
+  workflows/
+    ci.yml                      — build, test, push sha-<hash> image to GHCR
+    cd.yml                      — promote image to ECR, sync assets to S3, deploy via SSM
+    infra.yml                   — manual: bootstrap / apply / destroy infrastructure
+    ghcr-cleanup.yml            — prune old GHCR images
+  actions/
+    tf-setup/                   — composite action: AWS credentials + Terraform init
 LibraryApp/
   Dockerfile                    — multistage .NET 10 build
   Program.cs                    — entry point, DI, HTTP pipeline
   Components/
+    Routes.razor                — AuthorizeRouteView with cascading auth state
+    RedirectToLogin.razor       — redirects unauthenticated users to /login
+    RedirectToAccessDenied.razor — redirects unauthorized users to /access-denied
     Layout/
-      MainLayout.razor          — shell with AppBar, Drawer, dark mode toggle
+      MainLayout.razor          — shell with AppBar (user dropdown), Drawer, dark mode toggle
       NavMenu.razor             — side navigation menu
     Pages/
       Home.razor                — overdue loans dashboard
+      AccessDenied.razor        — 403 page
+      Error.razor               — error page
       Books/
         BookList.razor          — book list and search
         BookForm.razor          — book create/edit form
@@ -66,13 +89,23 @@ LibraryApp/
         ReturnBook.razor        — return with fine calculation
       MyLoans.razor             — user's own loan history
       UserProfile.razor         — self-service profile editing (all authenticated users)
+  Pages/
+    Login.cshtml / .cs          — cookie login (plain HTTP response for Set-Cookie)
+    Logout.cshtml / .cs         — cookie logout
   Data/
     DapperContext.cs            — PostgreSQL (Npgsql) connection factory
+    DateOnlyTypeHandler.cs      — Dapper type handler: Npgsql date → DateOnly
+    IBookRepository.cs          — book repository interface
     BookRepository.cs           — book CRUD + author/genre/publisher lookups for dropdowns
+    IAuthorRepository.cs        — author repository interface
     AuthorRepository.cs         — author CRUD
+    IGenreRepository.cs         — genre repository interface
     GenreRepository.cs          — genre CRUD
+    IPublisherRepository.cs     — publisher repository interface
     PublisherRepository.cs      — publisher CRUD
+    IUserRepository.cs          — user repository interface
     UserRepository.cs           — user CRUD
+    ILoanRepository.cs          — loan repository interface
     LoanRepository.cs           — loan CRUD, overdue loans
   Models/
     Book.cs, Author.cs, Genre.cs, Publisher.cs
@@ -80,6 +113,20 @@ LibraryApp/
     LoanDetail.cs               — includes days overdue and estimated fine (computed)
   wwwroot/
     app.css                     — global styles and dark mode overrides for validation
+LibraryApp.Tests/
+  Unit/
+    LoanDetailTests.cs          — model unit tests (xUnit)
+  Integration/
+    Fixtures/
+      PostgresFixture.cs        — shared Testcontainers PostgreSQL fixture
+    BookRepositoryTests.cs      — repository integration tests
+    LoanRepositoryTests.cs
+    UserRepositoryTests.cs
+  Component/
+    BookListTests.cs            — Blazor component tests (bUnit + NSubstitute)
+    LoanListTests.cs
+    MyLoansTests.cs
+    UserProfileTests.cs
 ```
 
 ## Application architecture
